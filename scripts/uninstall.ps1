@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     muhenkan-switch-rs アンインストールスクリプト (Windows)
