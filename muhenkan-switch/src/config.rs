@@ -3,6 +3,32 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum AppEntry {
+    Simple(String),
+    Detailed {
+        process: String,
+        launch: Option<String>,
+    },
+}
+
+impl AppEntry {
+    pub fn process(&self) -> &str {
+        match self {
+            AppEntry::Simple(name) => name,
+            AppEntry::Detailed { process, .. } => process,
+        }
+    }
+
+    pub fn launch(&self) -> Option<&str> {
+        match self {
+            AppEntry::Simple(_) => None,
+            AppEntry::Detailed { launch, .. } => launch.as_deref(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     #[serde(default)]
@@ -10,7 +36,7 @@ pub struct Config {
     #[serde(default)]
     pub folders: HashMap<String, String>,
     #[serde(default)]
-    pub apps: HashMap<String, String>,
+    pub apps: HashMap<String, AppEntry>,
     #[serde(default)]
     pub timestamp: TimestampConfig,
 }

@@ -25,7 +25,7 @@ summary: muhenkan-switchをkanata＋Rust製muhenkan-switchバイナリ構成でW
 **設計方針:**
 - kanata を外部バイナリとして利用（クレート組み込みはしない）
 - kanata と muhenkan-switch は `cmd` アクション（プロセス起動）で疎結合に接続
-- muhenkan-switch は非同期なし・unsafe なし・ライフタイム注釈なしのシンプルな Rust コード
+- muhenkan-switch は非同期なし・ライフタイム注釈なしのシンプルな Rust コード（Windows の Win32 API 呼び出しのみ unsafe を使用）
 
 ---
 
@@ -46,7 +46,7 @@ summary: muhenkan-switchをkanata＋Rust製muhenkan-switchバイナリ構成でW
 
 | 機能 | 実装方針 |
 |------|----------|
-| アプリ切り替え | OS別: PowerShell / wmctrl / osascript(未検証) |
+| アプリ切り替え | OS別: Win32 API (`windows` クレート) / wmctrl / osascript(未検証) |
 | フォルダオープン | `open` クレート |
 | 選択文字列 → Web検索 | `arboard`（クリップボード） + `webbrowser`（ブラウザ起動） |
 | タイムスタンプ | `chrono` → `arboard`（クリップボード書き込み） |
