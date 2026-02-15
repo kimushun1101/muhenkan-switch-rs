@@ -12,6 +12,11 @@
 .DS_Store
 Thumbs.db
 
+# Binaries (runtime)
+*.exe
+*.dll
+/config.toml
+
 # Release packages
 *.zip
 *.tar.gz
