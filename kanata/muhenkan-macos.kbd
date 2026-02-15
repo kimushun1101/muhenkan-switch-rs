@@ -1,0 +1,82 @@
+;; muhenkan-macos.kbd — macOS 用（未検証、JIS配列前提）
+;;
+;; ⚠️ このファイルは macOS 環境で検証されていません。
+;; JIS配列 Mac の「英数」キー (eisu) を無変換キーの代わりに使用します。
+;; 動作報告や修正 PR を歓迎します。
+;;
+;; macOS では Karabiner-VirtualHIDDevice のインストールと sudo が必要です。
+;; 起動: sudo kanata --cfg muhenkan-macos.kbd
+
+(defcfg
+  process-unmapped-keys yes
+  danger-enable-cmd yes
+)
+
+;; ── ソースキー定義 ──
+;; macOS JIS キーボードでは「英数」キーが eisu として認識される想定
+(defsrc
+  eisu
+  1  2  3  4  5
+  q  r  t  g
+  a  w  e  s  d  f
+  v  c  x
+  h  j  k  l
+  u  i  y  o
+  n  m  ;
+  ,  .
+  f1  p
+)
+
+(defalias
+  mh (tap-hold 200 200 eisu (layer-while-held mh-layer))
+
+  srch-q (cmd companion search --engine ejje)
+  srch-r (cmd companion search --engine thesaurus)
+  srch-t (cmd companion search --engine translate)
+  srch-g (cmd companion search --engine google)
+
+  app-a (cmd companion switch-app --target editor)
+  app-w (cmd companion switch-app --target word)
+  app-e (cmd companion switch-app --target email)
+  app-s (cmd companion switch-app --target slides)
+  app-d (cmd companion switch-app --target pdf)
+  app-f (cmd companion switch-app --target browser)
+
+  ts-v (cmd companion timestamp --action paste)
+  ts-c (cmd companion timestamp --action copy)
+  ts-x (cmd companion timestamp --action cut)
+
+  fld-1 (cmd companion open-folder --target documents)
+  fld-2 (cmd companion open-folder --target downloads)
+  fld-3 (cmd companion open-folder --target desktop)
+  fld-4 (cmd companion open-folder --target onedrive)
+  fld-5 (cmd companion open-folder --target trash)
+
+  prtsc (cmd companion screenshot)
+)
+
+(deflayer default
+  @mh
+  1  2  3  4  5
+  q  r  t  g
+  a  w  e  s  d  f
+  v  c  x
+  h  j  k  l
+  u  i  y  o
+  n  m  ;
+  ,  .
+  f1  p
+)
+
+(deflayer mh-layer
+  _
+  @fld-1  @fld-2  @fld-3  @fld-4  @fld-5
+  @srch-q  @srch-r  @srch-t  @srch-g
+  @app-a  @app-w  @app-e  @app-s  @app-d  @app-f
+  @ts-v  @ts-c  @ts-x
+  left  down  up  right
+  C-left  C-right  home  end
+  bspc  del  esc
+  (unicode 、)  (unicode 。)
+  f1  @prtsc
+)

@@ -1,0 +1,108 @@
+;; muhenkan.kbd — Windows / Linux 共通（JIS配列前提）
+;; kanata_cmd_allowed ビルドで使用すること
+;;
+;; 無変換キーを押しながら他のキーを押すことでショートカットが発動します。
+;; 無変換キー単体は無変換キーとして動作します。
+
+(defcfg
+  process-unmapped-keys yes
+  danger-enable-cmd yes
+)
+
+;; ── ソースキー定義 ──
+(defsrc
+  muhenkan
+  ;; 数字キー（フォルダ）
+  1  2  3  4  5
+  ;; 左手上段（検索系）
+  q  r  t  g
+  ;; 左手中段（アプリ切り替え）
+  a  w  e  s  d  f
+  ;; 左手下段（ファイル操作）
+  v  c  x
+  ;; 右手（カーソル操作）
+  h  j  k  l
+  u  i  y  o
+  n  m  ;
+  ;; 句読点
+  ,  .
+  ;; その他
+  f1  p
+)
+
+;; ── エイリアス ──
+(defalias
+  ;; 無変換キー: tap = 無変換 / hold = レイヤー切り替え
+  mh (tap-hold 200 200 muhenkan (layer-while-held mh-layer))
+
+  ;; ── Layer 2: companion 呼び出し ──
+  ;; 検索系（選択文字列を検索）
+  srch-q (cmd companion search --engine ejje)
+  srch-r (cmd companion search --engine thesaurus)
+  srch-t (cmd companion search --engine translate)
+  srch-g (cmd companion search --engine google)
+
+  ;; アプリ切り替え
+  app-a (cmd companion switch-app --target editor)
+  app-w (cmd companion switch-app --target word)
+  app-e (cmd companion switch-app --target email)
+  app-s (cmd companion switch-app --target slides)
+  app-d (cmd companion switch-app --target pdf)
+  app-f (cmd companion switch-app --target browser)
+
+  ;; ファイル操作
+  ts-v (cmd companion timestamp --action paste)
+  ts-c (cmd companion timestamp --action copy)
+  ts-x (cmd companion timestamp --action cut)
+
+  ;; フォルダオープン
+  fld-1 (cmd companion open-folder --target documents)
+  fld-2 (cmd companion open-folder --target downloads)
+  fld-3 (cmd companion open-folder --target desktop)
+  fld-4 (cmd companion open-folder --target onedrive)
+  fld-5 (cmd companion open-folder --target trash)
+
+  ;; スクリーンショット
+  prtsc (cmd companion screenshot)
+
+  ;; 設定画面（将来実装）
+  ;; cfg (cmd companion config-gui)
+)
+
+;; ── デフォルトレイヤー ──
+;; 無変換キーだけ tap-hold に変更、他はそのまま
+(deflayer default
+  @mh
+  1  2  3  4  5
+  q  r  t  g
+  a  w  e  s  d  f
+  v  c  x
+  h  j  k  l
+  u  i  y  o
+  n  m  ;
+  ,  .
+  f1  p
+)
+
+;; ── 無変換キー押下中レイヤー ──
+(deflayer mh-layer
+  _
+  ;; 数字キー → フォルダオープン
+  @fld-1  @fld-2  @fld-3  @fld-4  @fld-5
+  ;; 左手上段 → 検索
+  @srch-q  @srch-r  @srch-t  @srch-g
+  ;; 左手中段 → アプリ切り替え
+  @app-a  @app-w  @app-e  @app-s  @app-d  @app-f
+  ;; 左手下段 → タイムスタンプ操作
+  @ts-v  @ts-c  @ts-x
+  ;; 右手 → Vim風カーソル移動
+  left  down  up  right
+  ;; 単語移動 / 行頭行末
+  C-left  C-right  home  end
+  ;; 削除
+  bspc  del  esc
+  ;; 句読点
+  (unicode 、)  (unicode 。)
+  ;; F1 → 設定（将来実装）/ P → スクリーンショット
+  f1  @prtsc
+)

@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: companion
+            asset_suffix: linux-x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: companion.exe
+            asset_suffix: windows-x64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: companion
+            asset_suffix: macos-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: companion
+            asset_suffix: macos-arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build companion
+        working-directory: companion
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package release
+        shell: bash
+        run: |
+          RELEASE_DIR="muhenkan-switch-rs-${{ matrix.asset_suffix }}"
+          mkdir -p "$RELEASE_DIR"
+
+          # companion バイナリ
+          cp "companion/target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "$RELEASE_DIR/"
+
+          # 設定ファイル
+          cp config/default.toml "$RELEASE_DIR/config.toml"
+
+          # kanata 設定ファイル
+          cp kanata/muhenkan.kbd "$RELEASE_DIR/"
+          cp kanata/muhenkan-macos.kbd "$RELEASE_DIR/"
+
+          # README
+          cp README.md "$RELEASE_DIR/"
+
+      - name: Create archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          tar czf "muhenkan-switch-rs-${{ matrix.asset_suffix }}.tar.gz" \
+            "muhenkan-switch-rs-${{ matrix.asset_suffix }}/"
+
+      - name: Create archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "muhenkan-switch-rs-${{ matrix.asset_suffix }}" `
+            -DestinationPath "muhenkan-switch-rs-${{ matrix.asset_suffix }}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.asset_suffix }}
+          path: muhenkan-switch-rs-${{ matrix.asset_suffix }}.*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            muhenkan-switch-rs-*.tar.gz
+            muhenkan-switch-rs-*.zip
+          body: |
+            ## muhenkan-switch-rs
+
+            各OS向けのアーカイブをダウンロードしてください。
+            kanata (`kanata_cmd_allowed` 版) は別途 [kanata リリースページ](https://github.com/jtroo/kanata/releases) からダウンロードが必要です。
+
+            ### ダウンロード
+            - **Windows (x64)**: `muhenkan-switch-rs-windows-x64.zip`
+            - **Linux (x64)**: `muhenkan-switch-rs-linux-x64.tar.gz`
+            - **macOS (x64)**: `muhenkan-switch-rs-macos-x64.tar.gz` ⚠️ 未検証
+            - **macOS (ARM)**: `muhenkan-switch-rs-macos-arm64.tar.gz` ⚠️ 未検証
+          generate_release_notes: true

@@ -1,0 +1,40 @@
+# muhenkan-switch-rs 設定ファイル
+# companion バイナリと同じディレクトリに配置してください。
+
+# ── 検索エンジン ──
+# {query} が選択テキスト（URLエンコード済み）に置換されます
+[search]
+google = "https://www.google.com/search?q={query}"
+ejje = "https://ejje.weblio.jp/content/{query}"
+thesaurus = "https://thesaurus.weblio.jp/content/{query}"
+translate = "https://translate.google.com/?sl=auto&tl=en&text={query}"
+
+# ── フォルダ ──
+# ~ はホームディレクトリに展開されます
+[folders]
+documents = "~/Documents"
+downloads = "~/Downloads"
+desktop = "~/Desktop"
+onedrive = "~/OneDrive"
+# trash は OS によりパスが異なります。空欄の場合はデフォルト動作
+trash = ""
+
+# ── アプリ切り替え ──
+# Windows: プロセス名（拡張子なし）
+# Linux: wmctrl / xdotool で検索するウィンドウ名
+# macOS: アプリケーション名（未検証）
+[apps]
+editor = "Code"
+word = "WINWORD"
+email = "OUTLOOK"
+slides = "POWERPNT"
+pdf = "SumatraPDF"
+browser = "firefox"
+
+# ── タイムスタンプ ──
+[timestamp]
+# chrono のフォーマット文字列
+# %Y=年4桁, %m=月, %d=日, %H=時, %M=分, %S=秒
+format = "%Y%m%d"
+# "before" = タイムスタンプ_ファイル名, "after" = ファイル名_タイムスタンプ
+position = "before"
