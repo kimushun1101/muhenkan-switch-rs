@@ -28,7 +28,7 @@
 - **タイムスタンプ**: V/C/X → タイムスタンプの貼り付け・コピー・切り取り
 - **句読点入力**: カンマ → 「、」、ピリオド → 「。」
 
-詳細は [docs/DESIGN.md](docs/DESIGN.md) を参照してください。
+詳細は [docs/design.md](docs/design.md) を参照してください。
 
 ## セットアップ
 
@@ -223,7 +223,8 @@ curl https://mise.jdx.dev/install.sh | sh
 ```bash
 mise run build      # debug ビルド → ルートにコピー
 mise run release    # release ビルド → ルートにコピー
-mise run run        # debug ビルド後、kanata も起動
+mise run dev        # debug ビルド後、kanata も起動
+mise run gui        # GUI を起動
 ```
 
 ## ライセンス

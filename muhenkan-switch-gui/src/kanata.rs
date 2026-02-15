@@ -5,14 +5,78 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 
+/// Windows Job Object: GUI 終了時に子プロセス (kanata) を自動終了させる。
+/// JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE により、ハンドルが閉じられると
+/// 紐付けた全プロセスが OS によって強制終了される。
+#[cfg(target_os = "windows")]
+mod job_object {
+    use windows::Win32::Foundation::{CloseHandle, HANDLE};
+    use windows::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+    use windows::Win32::System::Threading::{OpenProcess, PROCESS_SET_QUOTA, PROCESS_TERMINATE};
+
+    pub struct JobObject(HANDLE);
+
+    // SAFETY: HANDLE はスレッド間で安全に共有可能
+    unsafe impl Send for JobObject {}
+    unsafe impl Sync for JobObject {}
+
+    impl JobObject {
+        pub fn new() -> Option<Self> {
+            unsafe {
+                let job = CreateJobObjectW(None, None).ok()?;
+
+                let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+                info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+                SetInformationJobObject(
+                    job,
+                    JobObjectExtendedLimitInformation,
+                    &info as *const _ as *const core::ffi::c_void,
+                    size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+                )
+                .ok()?;
+
+                Some(Self(job))
+            }
+        }
+
+        pub fn assign(&self, pid: u32) {
+            unsafe {
+                if let Ok(process) =
+                    OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, false, pid)
+                {
+                    let _ = AssignProcessToJobObject(self.0, process);
+                    let _ = CloseHandle(process);
+                }
+            }
+        }
+    }
+
+    impl Drop for JobObject {
+        fn drop(&mut self) {
+            unsafe {
+                let _ = CloseHandle(self.0);
+            }
+        }
+    }
+}
+
 pub struct KanataManager {
     child: Arc<Mutex<Option<Arc<SharedChild>>>>,
+    #[cfg(target_os = "windows")]
+    job: Option<job_object::JobObject>,
 }
 
 impl KanataManager {
     pub fn new() -> Self {
         Self {
             child: Arc::new(Mutex::new(None)),
+            #[cfg(target_os = "windows")]
+            job: job_object::JobObject::new(),
         }
     }
 
@@ -134,7 +198,14 @@ impl KanataManager {
                 kanata.display(), kbd.display()
             ))?;
 
-        eprintln!("[kanata] started (pid: {})", child.id());
+        let pid = child.id();
+        eprintln!("[kanata] started (pid: {})", pid);
+
+        #[cfg(target_os = "windows")]
+        if let Some(ref job) = self.job {
+            job.assign(pid);
+        }
+
         *guard = Some(Arc::new(child));
 
         Ok(())

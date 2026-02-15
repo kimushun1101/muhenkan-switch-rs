@@ -107,51 +107,6 @@ document.getElementById("ts-format-custom").addEventListener("input", () => {
   updateTimestampPreview();
 });
 
-// ── Drag reordering (mouse event based) ──
-let dragState = null;
-
-function enableDragReorder(row) {
-  const handle = document.createElement("span");
-  handle.className = "drag-handle";
-  handle.textContent = "≡";
-  handle.title = "ドラッグで並べ替え";
-  row.prepend(handle);
-
-  handle.addEventListener("mousedown", (e) => {
-    e.preventDefault();
-    const container = row.parentElement;
-    row.classList.add("dragging");
-    dragState = { row, container, startY: e.clientY };
-
-    function onMouseMove(e) {
-      if (!dragState) return;
-      const siblings = [...container.querySelectorAll(".list-row:not(.dragging)")];
-      for (const sibling of siblings) {
-        const rect = sibling.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        if (e.clientY < mid) {
-          container.insertBefore(dragState.row, sibling);
-          return;
-        }
-      }
-      // Past all siblings — move to end
-      container.appendChild(dragState.row);
-    }
-
-    function onMouseUp() {
-      if (dragState) {
-        dragState.row.classList.remove("dragging");
-        dragState = null;
-      }
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    }
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-  });
-}
-
 // ── Dispatch key dropdown helper ──
 function createDispatchKeySelect(selectedKey = "") {
   const select = document.createElement("select");
@@ -197,7 +152,6 @@ function addSearchRow(container, name = "", url = "", dispatchKey = "") {
   const keySelect = createDispatchKeySelect(dispatchKey);
   row.insertBefore(keySelect, row.firstChild);
   row.querySelector(".btn-remove").addEventListener("click", () => row.remove());
-  enableDragReorder(row);
   container.appendChild(row);
 }
 
@@ -238,7 +192,6 @@ function addFolderRow(container, name = "", path = "", dispatchKey = "") {
       console.error("フォルダ選択に失敗:", e);
     }
   });
-  enableDragReorder(row);
   container.appendChild(row);
 }
 
@@ -278,7 +231,6 @@ function addAppRow(container, name = "", process = "", command = "", dispatchKey
       row.querySelector(".command-input").value = selected.toLowerCase();
     }
   });
-  enableDragReorder(row);
   container.appendChild(row);
 }
 

@@ -1,7 +1,7 @@
 ---
 title: 無変換スイッチ マルチプラットフォーム化 設計書（v3 — Rust統合版）
 date: 2025-02-15
-updated: 2025-02-15
+updated: 2026-02-15
 tags:
   - keyboard-remapping
   - cross-platform
@@ -14,7 +14,7 @@ summary: muhenkan-switchをkanata＋Rust製muhenkan-switchバイナリ構成でW
 
 現行の `muhenkan-switch`（AutoHotkey v2、Windows専用）をマルチプラットフォーム化する。
 
-**アーキテクチャ:** kanata（既存OSSキーリマッパー）＋ Rust製 muhenkan-switch バイナリ
+**アーキテクチャ:** kanata（既存OSSキーリマッパー）＋ Rust製 muhenkan-switch バイナリ ＋ Tauri v2 GUI
 
 **前提条件:**
 - 対象OS: Windows / macOS / Linux
@@ -26,6 +26,7 @@ summary: muhenkan-switchをkanata＋Rust製muhenkan-switchバイナリ構成でW
 - kanata を外部バイナリとして利用（クレート組み込みはしない）
 - kanata と muhenkan-switch は `cmd` アクション（プロセス起動）で疎結合に接続
 - muhenkan-switch は非同期なし・ライフタイム注釈なしのシンプルな Rust コード（Windows の Win32 API 呼び出しのみ unsafe を使用）
+- GUI は Tauri v2 + vanilla JS（Node.js ビルドステップなし）で設定の閲覧・編集を提供
 
 ---
 
@@ -55,29 +56,53 @@ summary: muhenkan-switchをkanata＋Rust製muhenkan-switchバイナリ構成でW
 ### Layer 3: 設定管理 → muhenkan-switch が config.toml を読み込み
 
 - `toml` + `serde` で設定ファイルを構造体にデシリアライズ
+- `toml_edit` を使用し、コメントを保持したまま保存
 - 検索URL、アプリ名、フォルダパス、タイムスタンプ形式を設定可能
+- 各エントリにディスパッチキー (`key`) を設定可能。保存時はキー順でソート（キーなしは末尾）
+- バリデーション: タイムスタンプ形式・位置、検索URL の `{query}` プレースホルダ、ディスパッチキーの重複チェック（セクション横断）
 
 ---
 
 ## アーキテクチャ図
 
 ```
-┌──────────────────────────────────────────┐
-│            muhenkan-switch-rs            │
-│                                          │
-│  ┌──────────┐      ┌──────────────────┐ │
-│  │  kanata  │─cmd─→│  muhenkan-switch │ │
-│  │  (.kbd)  │      │  (Rust binary)   │ │
-│  └──────────┘      └──────────────────┘ │
-│   Layer 1            Layer 2 + 3        │
-│   キー入力           OS連携 + 設定管理  │
-│                                          │
-│  ┌──────────┐                            │
-│  │ config   │← muhenkan-switch が読み込み│
-│  │ (.toml)  │                            │
-│  └──────────┘                            │
-└──────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│              muhenkan-switch-rs               │
+│                                               │
+│  ┌──────────┐      ┌──────────────────┐      │
+│  │  kanata  │─cmd─→│  muhenkan-switch │      │
+│  │  (.kbd)  │      │  (Rust binary)   │      │
+│  └──────────┘      └──────────────────┘      │
+│   Layer 1            Layer 2 + 3             │
+│   キー入力           OS連携 + 設定管理       │
+│                                               │
+│  ┌──────────┐      ┌──────────────────┐      │
+│  │ config   │←────→│  GUI (Tauri v2)  │      │
+│  │ (.toml)  │      │  設定の閲覧/編集 │      │
+│  └──────────┘      └──────────────────┘      │
+│                      kanata 開始/停止/再起動  │
+└──────────────────────────────────────────────┘
 ```
+
+---
+
+## CLI 仕様
+
+```
+muhenkan-switch <COMMAND> [OPTIONS]
+
+Commands:
+  dispatch     <KEY>              ディスパッチキーに対応するアクションを実行
+  search       --engine <NAME>    選択テキスト（クリップボード）をWeb検索
+  switch-app   --target <NAME>    指定アプリを最前面に
+  open-folder  --target <NAME>    指定フォルダを開く
+  timestamp    --action <ACTION>  タイムスタンプ操作 (paste|copy|cut)
+  screenshot                      ウィンドウキャプチャ
+```
+
+設定は実行ファイルと同じディレクトリの `config.toml` から読み込む。
+
+`dispatch` は kanata の `.kbd` ファイルから呼ばれる汎用エントリポイント。キーを受け取り、config.toml の各エントリの `key` フィールドを search → folders → apps の順に走査して対応するアクション（search / open-folder / switch-app）を実行する。これにより kbd ファイルはキー割り当ての詳細を持たず、全ての対応関係を config.toml で管理できる。
 
 ---
 
@@ -87,6 +112,7 @@ GUI (Tauri) から kanata プロセスの開始・停止・再起動を行う。
 
 - **再起動の用途:** kanata は `.kbd` 設定ファイルの変更を自動検知しないため、設定編集後に再起動して反映する
 - バイナリ探索は exe 同梱ディレクトリ → カレントディレクトリ → ワークスペースルートの順にフォールバック
+- **子プロセス自動終了 (Windows):** Job Object (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) を使用し、GUI プロセス終了時に kanata を OS レベルで自動終了させる
 
 ---
 
@@ -100,23 +126,6 @@ GUI (Tauri) から kanata プロセスの開始・停止・再起動を行う。
 
 ---
 
-## muhenkan-switch CLI 仕様
-
-```
-muhenkan-switch <COMMAND> [OPTIONS]
-
-Commands:
-  search       --engine <NAME>    選択テキスト（クリップボード）をWeb検索
-  switch-app   --target <NAME>    指定アプリを最前面に
-  open-folder  --target <NAME>    指定フォルダを開く
-  timestamp    --action <ACTION>  タイムスタンプ操作 (paste|copy|cut)
-  screenshot                      ウィンドウキャプチャ
-```
-
-設定は実行ファイルと同じディレクトリの `config.toml` から読み込む。
-
----
-
 ## 使用クレート
 
 | 用途 | クレート | バージョン |
@@ -126,6 +135,10 @@ Commands:
 | ブラウザ起動 | `webbrowser` | 1.x |
 | ファイル/フォルダオープン | `open` | 5.x |
 | TOML読み込み | `toml` + `serde` | 0.8.x / 1.x |
+| TOML書き込み (コメント保持) | `toml_edit` | 0.22.x |
+| 順序付きマップ | `indexmap` | 2.x |
+| 子プロセス共有 | `shared_child` | 1.x |
+| Job Object (Windows) | `windows` | 0.61.x |
 | 日時処理 | `chrono` | 0.4.x |
 | URLエンコード | `urlencoding` | 2.x |
 | エラーハンドリング | `anyhow` | 1.x |
@@ -143,17 +156,26 @@ Commands:
 
 ## 実装ロードマップ
 
-### Phase 1: kanata コアキーマッピング（1-2週間）
+### Phase 1: kanata コアキーマッピング ✅
 - `muhenkan.kbd` で無変換 + HJKL カーソル移動を実装
 - Windows / Linux で動作確認
 
-### Phase 2: muhenkan-switch 最小実装（2-3週間）
+### Phase 2: muhenkan-switch 最小実装 ✅
 - 実装順序: open-folder → search → timestamp → switch-app
 - kanata の `cmd` アクションとの結合テスト
 
-### Phase 3: ビルド自動化 + リリース（1-2週間）
-- GitHub Actions クロスコンパイル
-- README + macOS 用 .kbd 作成
+### Phase 3: GUI (Tauri v2) ✅
+- 設定の閲覧・編集 UI
+- kanata プロセスの開始・停止・再起動
+- システムトレイ常駐
 
-### Phase 4: 機能拡充（継続）
-- ホットストリング、スクリーンショット、GUI（Tauri検討）
+### Phase 4: キーディスパッチ ✅
+- `dispatch` サブコマンドの実装
+- config.toml にキー割り当て (`key`) を追加
+- 新旧形式の後方互換パース
+- GUI にディスパッチキー編集 UI を追加
+- config crate テスト 31 件整備
+
+### Phase 5: 機能拡充（継続）
+- ビルド自動化 + GitHub Actions クロスコンパイル
+- ホットストリング、スクリーンショット

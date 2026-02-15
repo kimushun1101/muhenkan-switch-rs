@@ -242,28 +242,6 @@ button:disabled {
   flex: none;
 }
 
-.list-row .drag-handle {
-  cursor: grab;
-  color: var(--text-dim);
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 2px;
-  flex-shrink: 0;
-  user-select: none;
-}
-
-.list-row .drag-handle:hover {
-  color: var(--text);
-}
-
-.list-row .drag-handle:active {
-  cursor: grabbing;
-}
-
-.list-row.dragging {
-  opacity: 0.4;
-}
-
 .list-row .btn-remove {
   padding: 4px 8px;
   color: var(--red);

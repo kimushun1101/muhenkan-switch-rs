@@ -21,7 +21,9 @@ open = "5"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [
+    "Win32_Security",
     "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_JobObjects",
     "Win32_System_Threading",
 ] }
 
