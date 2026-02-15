@@ -15,95 +15,60 @@ pub const DISPATCH_KEYS: &[&str] = &[
 // ── Types ──
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(untagged)]
-pub enum SearchEntry {
-    Simple(String),
-    Detailed {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        key: Option<String>,
-        url: String,
-    },
+pub struct SearchEntry {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    pub url: String,
 }
 
 impl SearchEntry {
     pub fn url(&self) -> &str {
-        match self {
-            SearchEntry::Simple(url) => url,
-            SearchEntry::Detailed { url, .. } => url,
-        }
+        &self.url
     }
 
     pub fn dispatch_key(&self) -> Option<&str> {
-        match self {
-            SearchEntry::Simple(_) => None,
-            SearchEntry::Detailed { key, .. } => key.as_deref(),
-        }
+        self.key.as_deref()
     }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(untagged)]
-pub enum FolderEntry {
-    Simple(String),
-    Detailed {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        key: Option<String>,
-        path: String,
-    },
+pub struct FolderEntry {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    pub path: String,
 }
 
 impl FolderEntry {
     pub fn path(&self) -> &str {
-        match self {
-            FolderEntry::Simple(path) => path,
-            FolderEntry::Detailed { path, .. } => path,
-        }
+        &self.path
     }
 
     pub fn dispatch_key(&self) -> Option<&str> {
-        match self {
-            FolderEntry::Simple(_) => None,
-            FolderEntry::Detailed { key, .. } => key.as_deref(),
-        }
+        self.key.as_deref()
     }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(untagged)]
-pub enum AppEntry {
-    Simple(String),
-    Detailed {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        key: Option<String>,
-        process: String,
-        #[serde(skip_serializing_if = "Option::is_none", alias = "launch")]
-        command: Option<String>,
-    },
+pub struct AppEntry {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    pub process: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
 }
 
 impl AppEntry {
     pub fn process(&self) -> &str {
-        match self {
-            AppEntry::Simple(name) => name,
-            AppEntry::Detailed { process, .. } => process,
-        }
+        &self.process
     }
 
     /// 起動コマンドを返す。未設定の場合はプロセス名をフォールバックとして使う。
     pub fn command(&self) -> Option<&str> {
-        match self {
-            AppEntry::Simple(name) => Some(name.as_str()),
-            AppEntry::Detailed { process, command, .. } => {
-                Some(command.as_deref().unwrap_or(process.as_str()))
-            }
-        }
+        Some(self.command.as_deref().unwrap_or(&self.process))
     }
 
     pub fn dispatch_key(&self) -> Option<&str> {
-        match self {
-            AppEntry::Simple(_) => None,
-            AppEntry::Detailed { key, .. } => key.as_deref(),
-        }
+        self.key.as_deref()
     }
 }
 
@@ -240,7 +205,10 @@ fn default_search_engines() -> IndexMap<String, SearchEntry> {
     let mut m = IndexMap::new();
     m.insert(
         "google".to_string(),
-        SearchEntry::Simple("https://www.google.com/search?q={query}".to_string()),
+        SearchEntry {
+            key: None,
+            url: "https://www.google.com/search?q={query}".to_string(),
+        },
     );
     m
 }
@@ -285,19 +253,12 @@ pub fn save(path: &std::path::Path, config: &Config) -> Result<()> {
         sort_key(a.dispatch_key(), na).cmp(&sort_key(b.dispatch_key(), nb))
     });
     for (name, entry) in search_entries {
-        match entry {
-            SearchEntry::Simple(url) => {
-                search_table[name] = toml_edit::value(url);
-            }
-            SearchEntry::Detailed { key, url } => {
-                let mut inline = InlineTable::new();
-                if let Some(dk) = key {
-                    inline.insert("key", Value::from(dk.as_str()));
-                }
-                inline.insert("url", Value::from(url.as_str()));
-                search_table[name] = toml_edit::value(inline);
-            }
+        let mut inline = InlineTable::new();
+        if let Some(dk) = &entry.key {
+            inline.insert("key", Value::from(dk.as_str()));
         }
+        inline.insert("url", Value::from(entry.url.as_str()));
+        search_table[name] = toml_edit::value(inline);
     }
 
     // [folders] セクション
@@ -312,19 +273,12 @@ pub fn save(path: &std::path::Path, config: &Config) -> Result<()> {
         sort_key(a.dispatch_key(), na).cmp(&sort_key(b.dispatch_key(), nb))
     });
     for (name, entry) in folder_entries {
-        match entry {
-            FolderEntry::Simple(path) => {
-                folders_table[name] = toml_edit::value(path);
-            }
-            FolderEntry::Detailed { key, path } => {
-                let mut inline = InlineTable::new();
-                if let Some(dk) = key {
-                    inline.insert("key", Value::from(dk.as_str()));
-                }
-                inline.insert("path", Value::from(path.as_str()));
-                folders_table[name] = toml_edit::value(inline);
-            }
+        let mut inline = InlineTable::new();
+        if let Some(dk) = &entry.key {
+            inline.insert("key", Value::from(dk.as_str()));
         }
+        inline.insert("path", Value::from(entry.path.as_str()));
+        folders_table[name] = toml_edit::value(inline);
     }
 
     // [apps] セクション
@@ -339,26 +293,15 @@ pub fn save(path: &std::path::Path, config: &Config) -> Result<()> {
         sort_key(a.dispatch_key(), na).cmp(&sort_key(b.dispatch_key(), nb))
     });
     for (name, entry) in app_entries {
-        match entry {
-            AppEntry::Simple(process_name) => {
-                apps_table[name] = toml_edit::value(process_name);
-            }
-            AppEntry::Detailed {
-                key,
-                process,
-                command,
-            } => {
-                let mut inline = InlineTable::new();
-                if let Some(dk) = key {
-                    inline.insert("key", Value::from(dk.as_str()));
-                }
-                inline.insert("process", Value::from(process.as_str()));
-                if let Some(cmd) = command {
-                    inline.insert("command", Value::from(cmd.as_str()));
-                }
-                apps_table[name] = toml_edit::value(inline);
-            }
+        let mut inline = InlineTable::new();
+        if let Some(dk) = &entry.key {
+            inline.insert("key", Value::from(dk.as_str()));
         }
+        inline.insert("process", Value::from(entry.process.as_str()));
+        if let Some(cmd) = &entry.command {
+            inline.insert("command", Value::from(cmd.as_str()));
+        }
+        apps_table[name] = toml_edit::value(inline);
     }
 
     // [timestamp] セクション
@@ -511,27 +454,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_old_format() {
-        let toml_str = r#"
-            [search]
-            google = "https://www.google.com/search?q={query}"
-
-            [folders]
-            documents = "~/Documents"
-
-            [apps]
-            editor = {process = "Code", command = "code"}
-        "#;
-        let config: Config = toml::from_str(toml_str).unwrap();
-        assert_eq!(config.search["google"].url(), "https://www.google.com/search?q={query}");
-        assert!(config.search["google"].dispatch_key().is_none());
-        assert_eq!(config.folders["documents"].path(), "~/Documents");
-        assert!(config.folders["documents"].dispatch_key().is_none());
-        assert_eq!(config.apps["editor"].process(), "Code");
-        assert!(config.apps["editor"].dispatch_key().is_none());
-    }
-
-    #[test]
     fn test_parse_new_format_with_keys() {
         let toml_str = r#"
             [search]
@@ -599,38 +521,7 @@ mod tests {
     // ── A. パース (追加分) ──
 
     #[test]
-    fn test_parse_mixed_format() {
-        let toml_str = r#"
-            [search]
-            google = {key = "g", url = "https://www.google.com/search?q={query}"}
-            ejje = "https://ejje.weblio.jp/content/{query}"
-
-            [folders]
-            documents = {key = "1", path = "~/Documents"}
-            downloads = "~/Downloads"
-
-            [apps]
-            editor = {key = "a", process = "Code", command = "code"}
-            browser = "firefox"
-        "#;
-        let config: Config = toml::from_str(toml_str).unwrap();
-
-        // Detailed entries have keys
-        assert_eq!(config.search["google"].dispatch_key(), Some("g"));
-        assert_eq!(config.folders["documents"].dispatch_key(), Some("1"));
-        assert_eq!(config.apps["editor"].dispatch_key(), Some("a"));
-
-        // Simple entries have no keys
-        assert!(config.search["ejje"].dispatch_key().is_none());
-        assert_eq!(config.search["ejje"].url(), "https://ejje.weblio.jp/content/{query}");
-        assert!(config.folders["downloads"].dispatch_key().is_none());
-        assert_eq!(config.folders["downloads"].path(), "~/Downloads");
-        assert!(config.apps["browser"].dispatch_key().is_none());
-        assert_eq!(config.apps["browser"].process(), "firefox");
-    }
-
-    #[test]
-    fn test_parse_detailed_without_key() {
+    fn test_parse_without_key() {
         let toml_str = r#"
             [search]
             google = {url = "https://www.google.com/search?q={query}"}
@@ -674,40 +565,7 @@ mod tests {
         assert!(config.apps.is_empty());
     }
 
-    #[test]
-    fn test_parse_app_simple() {
-        let toml_str = r#"
-            [apps]
-            editor = "Code"
-        "#;
-        let config: Config = toml::from_str(toml_str).unwrap();
-        assert_eq!(config.apps["editor"].process(), "Code");
-        assert_eq!(config.apps["editor"].command(), Some("Code"));
-        assert!(config.apps["editor"].dispatch_key().is_none());
-    }
-
     // ── B. ディスパッチ検索 (追加分) ──
-
-    #[test]
-    fn test_dispatch_lookup_skips_simple() {
-        let toml_str = r#"
-            [search]
-            google = "https://www.google.com/search?q={query}"
-
-            [folders]
-            documents = "~/Documents"
-
-            [apps]
-            editor = {key = "a", process = "Code", command = "code"}
-        "#;
-        let config: Config = toml::from_str(toml_str).unwrap();
-        // Simple entries are skipped, only "a" is found
-        assert!(config.dispatch_lookup("g").is_none());
-        match config.dispatch_lookup("a") {
-            Some(DispatchAction::SwitchApp { target }) => assert_eq!(target, "editor"),
-            other => panic!("Expected SwitchApp, got {:?}", other),
-        }
-    }
 
     #[test]
     fn test_dispatch_lookup_priority() {
@@ -723,24 +581,6 @@ mod tests {
         match config.dispatch_lookup("a") {
             Some(DispatchAction::Search { engine }) => assert_eq!(engine, "google"),
             other => panic!("Expected Search (priority over Apps), got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn test_dispatch_lookup_no_keys() {
-        let toml_str = r#"
-            [search]
-            google = "https://www.google.com/search?q={query}"
-
-            [folders]
-            documents = "~/Documents"
-
-            [apps]
-            editor = "Code"
-        "#;
-        let config: Config = toml::from_str(toml_str).unwrap();
-        for key in DISPATCH_KEYS {
-            assert!(config.dispatch_lookup(key).is_none());
         }
     }
 
@@ -789,7 +629,7 @@ mod tests {
         config.timestamp.position = "middle".to_string();
         config.search.insert(
             "bad".to_string(),
-            SearchEntry::Detailed {
+            SearchEntry {
                 key: Some("g".to_string()),
                 url: "https://example.com/no-placeholder".to_string(),
             },
@@ -813,7 +653,7 @@ mod tests {
             if i < 5 {
                 config.search.insert(
                     name,
-                    SearchEntry::Detailed {
+                    SearchEntry {
                         key: Some(key.to_string()),
                         url: format!("https://example.com/{}?q={{query}}", key),
                     },
@@ -821,7 +661,7 @@ mod tests {
             } else if i < 10 {
                 config.folders.insert(
                     name,
-                    FolderEntry::Detailed {
+                    FolderEntry {
                         key: Some(key.to_string()),
                         path: format!("~/{}", key),
                     },
@@ -829,7 +669,7 @@ mod tests {
             } else {
                 config.apps.insert(
                     name,
-                    AppEntry::Detailed {
+                    AppEntry {
                         key: Some(key.to_string()),
                         process: format!("app_{}", key),
                         command: None,
@@ -890,47 +730,6 @@ mod tests {
     }
 
     #[test]
-    fn test_roundtrip_save_load_mixed() {
-        let toml_str = r#"
-            [search]
-            google = {key = "g", url = "https://www.google.com/search?q={query}"}
-            ejje = "https://ejje.weblio.jp/content/{query}"
-
-            [folders]
-            documents = {key = "1", path = "~/Documents"}
-            downloads = "~/Downloads"
-
-            [apps]
-            editor = {key = "a", process = "Code", command = "code"}
-            browser = "firefox"
-        "#;
-        let config: Config = toml::from_str(toml_str).unwrap();
-
-        let dir = std::env::temp_dir().join("muhenkan_test_roundtrip_mixed");
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("config.toml");
-
-        save(&path, &config).unwrap();
-        let loaded = load_from(&path).unwrap();
-
-        // Detailed entries preserve keys
-        assert_eq!(loaded.search["google"].dispatch_key(), Some("g"));
-        assert_eq!(loaded.folders["documents"].dispatch_key(), Some("1"));
-        assert_eq!(loaded.apps["editor"].dispatch_key(), Some("a"));
-
-        // Simple entries remain keyless
-        assert!(loaded.search["ejje"].dispatch_key().is_none());
-        assert_eq!(loaded.search["ejje"].url(), "https://ejje.weblio.jp/content/{query}");
-        assert!(loaded.folders["downloads"].dispatch_key().is_none());
-        assert_eq!(loaded.folders["downloads"].path(), "~/Downloads");
-        assert!(loaded.apps["browser"].dispatch_key().is_none());
-        assert_eq!(loaded.apps["browser"].process(), "firefox");
-
-        // Cleanup
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
     fn test_save_creates_file() {
         let dir = std::env::temp_dir().join("muhenkan_test_save_creates");
         // Ensure clean state
@@ -976,31 +775,6 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
-    #[test]
-    fn test_save_sorts_keyless_entries_last() {
-        let toml_str = r#"
-            [search]
-            zzz = "https://zzz.com/?q={query}"
-            aaa = {key = "g", url = "https://aaa.com/?q={query}"}
-            mmm = "https://mmm.com/?q={query}"
-        "#;
-        let config: Config = toml::from_str(toml_str).unwrap();
-
-        let dir = std::env::temp_dir().join("muhenkan_test_sort_keyless");
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("config.toml");
-
-        save(&path, &config).unwrap();
-        let loaded = load_from(&path).unwrap();
-
-        // key あり (aaa) が先、key なしは名前順 (mmm, zzz)
-        let names: Vec<&String> = loaded.search.keys().collect();
-        assert_eq!(names, vec!["aaa", "mmm", "zzz"]);
-
-        // Cleanup
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
     // ── E. ヘルパー関数 ──
 
     #[test]
@@ -1008,7 +782,7 @@ mod tests {
         let mut search = IndexMap::new();
         search.insert(
             "google".to_string(),
-            SearchEntry::Detailed {
+            SearchEntry {
                 key: Some("g".to_string()),
                 url: "https://www.google.com/search?q={query}".to_string(),
             },
@@ -1030,7 +804,7 @@ mod tests {
         let mut folders = IndexMap::new();
         folders.insert(
             "docs".to_string(),
-            FolderEntry::Detailed {
+            FolderEntry {
                 key: Some("1".to_string()),
                 path: "~/Documents".to_string(),
             },
@@ -1049,7 +823,7 @@ mod tests {
 
     #[test]
     fn test_app_entry_command_fallback() {
-        let entry = AppEntry::Detailed {
+        let entry = AppEntry {
             key: Some("a".to_string()),
             process: "Code".to_string(),
             command: None,
@@ -1059,7 +833,7 @@ mod tests {
         assert_eq!(entry.process(), "Code");
 
         // When command is explicitly set, it takes priority
-        let entry2 = AppEntry::Detailed {
+        let entry2 = AppEntry {
             key: Some("a".to_string()),
             process: "Code".to_string(),
             command: Some("code".to_string()),

@@ -134,9 +134,7 @@ function renderSearchList() {
   const container = document.getElementById("search-list");
   container.innerHTML = "";
   for (const [name, entry] of Object.entries(config.search || {})) {
-    const url = typeof entry === "string" ? entry : entry.url;
-    const dispatchKey = typeof entry === "string" ? "" : entry.key || "";
-    addSearchRow(container, name, url, dispatchKey);
+    addSearchRow(container, name, entry.url, entry.key || "");
   }
 }
 
@@ -164,9 +162,7 @@ function renderFoldersList() {
   const container = document.getElementById("folders-list");
   container.innerHTML = "";
   for (const [name, entry] of Object.entries(config.folders || {})) {
-    const path = typeof entry === "string" ? entry : entry.path;
-    const dispatchKey = typeof entry === "string" ? "" : entry.key || "";
-    addFolderRow(container, name, path, dispatchKey);
+    addFolderRow(container, name, entry.path, entry.key || "");
   }
 }
 
@@ -204,10 +200,7 @@ function renderAppsList() {
   const container = document.getElementById("apps-list");
   container.innerHTML = "";
   for (const [name, entry] of Object.entries(config.apps || {})) {
-    const process = typeof entry === "string" ? entry : entry.process;
-    const command = typeof entry === "string" ? "" : entry.command || "";
-    const dispatchKey = typeof entry === "string" ? "" : entry.key || "";
-    addAppRow(container, name, process, command, dispatchKey);
+    addAppRow(container, name, entry.process, entry.command || "", entry.key || "");
   }
 }
 
@@ -347,11 +340,9 @@ function collectConfig() {
     const url = row.querySelectorAll("input[type='text']")[1].value.trim();
     const dispatchKey = row.querySelector(".dispatch-key-select").value;
     if (name) {
-      if (dispatchKey) {
-        collected.search[name] = { key: dispatchKey, url };
-      } else {
-        collected.search[name] = url;
-      }
+      const entry = { url };
+      if (dispatchKey) entry.key = dispatchKey;
+      collected.search[name] = entry;
     }
   }
 
@@ -361,11 +352,9 @@ function collectConfig() {
     const path = row.querySelector(".path-input").value.trim();
     const dispatchKey = row.querySelector(".dispatch-key-select").value;
     if (name) {
-      if (dispatchKey) {
-        collected.folders[name] = { key: dispatchKey, path };
-      } else {
-        collected.folders[name] = path;
-      }
+      const entry = { path };
+      if (dispatchKey) entry.key = dispatchKey;
+      collected.folders[name] = entry;
     }
   }
 
@@ -376,14 +365,10 @@ function collectConfig() {
     const command = row.querySelector(".command-input").value.trim();
     const dispatchKey = row.querySelector(".dispatch-key-select").value;
     if (name) {
-      if (command || dispatchKey) {
-        const entry = { process };
-        if (dispatchKey) entry.key = dispatchKey;
-        if (command) entry.command = command;
-        collected.apps[name] = entry;
-      } else {
-        collected.apps[name] = process;
-      }
+      const entry = { process };
+      if (dispatchKey) entry.key = dispatchKey;
+      if (command) entry.command = command;
+      collected.apps[name] = entry;
     }
   }
 

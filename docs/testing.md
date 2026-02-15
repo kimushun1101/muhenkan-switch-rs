@@ -8,11 +8,11 @@ cargo test --workspace
 
 ## テストの場所
 
-- `muhenkan-switch-config/src/lib.rs` — config crate 単体テスト (31件)
+- `muhenkan-switch-config/src/lib.rs` — config crate 単体テスト (24件)
 
 ## カテゴリ
 
-- **パース** (`test_parse_*`) — TOML デシリアライズ、新旧形式、混在
+- **パース** (`test_parse_*`) — TOML デシリアライズ
 - **ディスパッチ** (`test_dispatch_*`) — キー→アクション検索、優先順位
 - **バリデーション** (`test_validate_*`) — 設定値の検証、キー重複検出
 - **Save/Load** (`test_roundtrip_*`, `test_save_*`) — ファイル書き出しと復元、ソート順

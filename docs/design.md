@@ -172,9 +172,8 @@ GUI (Tauri) から kanata プロセスの開始・停止・再起動を行う。
 ### Phase 4: キーディスパッチ ✅
 - `dispatch` サブコマンドの実装
 - config.toml にキー割り当て (`key`) を追加
-- 新旧形式の後方互換パース
 - GUI にディスパッチキー編集 UI を追加
-- config crate テスト 31 件整備
+- config crate テスト 24 件整備
 
 ### Phase 5: 機能拡充（継続）
 - ビルド自動化 + GitHub Actions クロスコンパイル
