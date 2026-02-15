@@ -2079,6 +2079,7 @@ name = "muhenkan-switch-config"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "indexmap 2.13.0",
  "serde",
  "toml 0.8.23",
  "toml_edit 0.22.27",

@@ -10,9 +10,9 @@ pub fn run(target: &str, config: &Config) -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("App '{}' is not defined in config.toml", target))?;
 
     let process_name = entry.process();
-    let launch_cmd = entry.launch();
+    let command = entry.command();
 
-    activate_window(process_name, launch_cmd)
+    activate_window(process_name, command)
 }
 
 #[cfg(target_os = "windows")]

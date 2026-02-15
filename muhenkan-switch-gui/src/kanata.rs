@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use shared_child::SharedChild;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -17,65 +18,104 @@ impl KanataManager {
     }
 
     /// kanata バイナリのパスを取得
+    ///
+    /// 探索順序:
+    /// 1. exe と同じディレクトリ（インストール環境）
+    /// 2. カレントディレクトリ（開発環境: mise run gui 時）
+    /// 3. ワークスペースルート（開発環境: CARGO_MANIFEST_DIR の親）
     fn kanata_path() -> Result<PathBuf> {
-        let exe_dir = std::env::current_exe()
-            .context("Cannot determine exe path")?
-            .parent()
-            .context("Cannot determine exe directory")?
-            .to_path_buf();
-
         #[cfg(target_os = "windows")]
         let name = "kanata_cmd_allowed.exe";
         #[cfg(not(target_os = "windows"))]
         let name = "kanata_cmd_allowed";
 
-        let path = exe_dir.join(name);
-        if !path.exists() {
-            // Also check current directory
-            let cwd_path = PathBuf::from(name);
-            if cwd_path.exists() {
-                return Ok(cwd_path);
+        // 1. exe と同じディレクトリ
+        if let Ok(exe_dir) = std::env::current_exe().map(|p| p.parent().unwrap().to_path_buf()) {
+            let path = exe_dir.join(name);
+            if path.exists() {
+                return Ok(path);
             }
-            anyhow::bail!("kanata binary not found: {}", path.display());
         }
-        Ok(path)
+
+        // 2. カレントディレクトリ
+        let cwd_path = PathBuf::from(name);
+        if cwd_path.exists() {
+            return Ok(std::env::current_dir()
+                .unwrap_or_default()
+                .join(name));
+        }
+
+        // 3. ワークスペースルート（開発環境）
+        let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.to_path_buf());
+        if let Some(ref root) = workspace_root {
+            let path = root.join(name);
+            if path.exists() {
+                return Ok(path);
+            }
+        }
+
+        anyhow::bail!(
+            "kanata バイナリが見つかりません ({name})\n\
+             プロジェクトルートに {name} を配置してください"
+        );
     }
 
     /// kanata 設定ファイルのパスを取得
+    ///
+    /// 探索順序:
+    /// 1. exe と同じディレクトリの muhenkan.kbd（インストール環境）
+    /// 2. cwd の kanata/muhenkan.kbd（開発環境）
+    /// 3. ワークスペースルートの kanata/muhenkan.kbd（開発環境）
     fn kbd_path() -> Result<PathBuf> {
-        let exe_dir = std::env::current_exe()
-            .context("Cannot determine exe path")?
-            .parent()
-            .context("Cannot determine exe directory")?
-            .to_path_buf();
-
-        let path = exe_dir.join("muhenkan.kbd");
-        if !path.exists() {
-            // Also check kanata/ subdirectory
-            let sub_path = exe_dir.join("kanata").join("muhenkan.kbd");
-            if sub_path.exists() {
-                return Ok(sub_path);
+        // 1. exe と同じディレクトリ
+        if let Ok(exe_dir) = std::env::current_exe().map(|p| p.parent().unwrap().to_path_buf()) {
+            let path = exe_dir.join("muhenkan.kbd");
+            if path.exists() {
+                return Ok(path);
             }
-            // Check current directory
-            let cwd_path = PathBuf::from("kanata").join("muhenkan.kbd");
-            if cwd_path.exists() {
-                return Ok(cwd_path);
-            }
-            anyhow::bail!("kanata config not found: {}", path.display());
         }
-        Ok(path)
+
+        // 2. カレントディレクトリの kanata/ サブディレクトリ
+        let cwd_path = PathBuf::from("kanata").join("muhenkan.kbd");
+        if cwd_path.exists() {
+            return Ok(std::env::current_dir()
+                .unwrap_or_default()
+                .join("kanata")
+                .join("muhenkan.kbd"));
+        }
+
+        // 3. ワークスペースルート（開発環境）
+        let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.to_path_buf());
+        if let Some(ref root) = workspace_root {
+            let path = root.join("kanata").join("muhenkan.kbd");
+            if path.exists() {
+                return Ok(path);
+            }
+        }
+
+        anyhow::bail!(
+            "kanata 設定ファイルが見つかりません (muhenkan.kbd)\n\
+             kanata/muhenkan.kbd が存在するか確認してください"
+        );
     }
 
     pub fn start(&self) -> Result<()> {
         let mut guard = self.child.lock().unwrap();
         if let Some(ref child) = *guard {
             if child.try_wait().ok().flatten().is_none() {
-                anyhow::bail!("kanata is already running");
+                anyhow::bail!("kanata は既に実行中です");
             }
         }
 
         let kanata = Self::kanata_path()?;
         let kbd = Self::kbd_path()?;
+
+        eprintln!("[kanata] binary: {}", kanata.display());
+        eprintln!("[kanata] config: {}", kbd.display());
 
         let mut cmd = std::process::Command::new(&kanata);
         cmd.arg("--cfg").arg(&kbd);
@@ -88,7 +128,14 @@ impl KanataManager {
         }
 
         let child = SharedChild::spawn(&mut cmd)
-            .with_context(|| format!("Failed to start kanata: {}", kanata.display()))?;
+            .with_context(|| format!(
+                "kanata の起動に失敗しました\n\
+                 バイナリ: {}\n\
+                 設定: {}",
+                kanata.display(), kbd.display()
+            ))?;
+
+        eprintln!("[kanata] started (pid: {})", child.id());
         *guard = Some(Arc::new(child));
 
         Ok(())
@@ -97,8 +144,9 @@ impl KanataManager {
     pub fn stop(&self) -> Result<()> {
         let mut guard = self.child.lock().unwrap();
         if let Some(child) = guard.take() {
-            child.kill().context("Failed to kill kanata")?;
-            child.wait().context("Failed to wait for kanata")?;
+            child.kill().context("kanata プロセスの停止に失敗しました")?;
+            child.wait().context("kanata プロセスの終了待機に失敗しました")?;
+            eprintln!("[kanata] stopped");
         }
         Ok(())
     }
@@ -122,10 +170,70 @@ impl KanataManager {
     }
 }
 
-/// アプリ起動時のセットアップ（状態監視スレッド起動）
+/// kbd ファイルからキーバインド情報を抽出する。
+///
+/// 戻り値: `{ "apps": { "editor": "A", ... }, "search": { ... }, "folders": { ... } }`
+pub fn parse_key_bindings() -> Result<HashMap<String, HashMap<String, String>>> {
+    let kbd = KanataManager::kbd_path()?;
+    let content = std::fs::read_to_string(&kbd)
+        .with_context(|| format!("kbd ファイルの読み込みに失敗: {}", kbd.display()))?;
+
+    let mut apps = HashMap::new();
+    let mut search = HashMap::new();
+    let mut folders = HashMap::new();
+
+    // パターン: app-{key} (cmd muhenkan-switch switch-app --target {name})
+    //           srch-{key} (cmd muhenkan-switch search --engine {name})
+    //           fld-{key} (cmd muhenkan-switch open-folder --target {name})
+    for line in content.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("app-") {
+            if let Some((key, name)) = parse_alias_line(rest, "switch-app --target") {
+                apps.insert(name, key.to_uppercase());
+            }
+        } else if let Some(rest) = line.strip_prefix("srch-") {
+            if let Some((key, name)) = parse_alias_line(rest, "search --engine") {
+                search.insert(name, key.to_uppercase());
+            }
+        } else if let Some(rest) = line.strip_prefix("fld-") {
+            if let Some((key, name)) = parse_alias_line(rest, "open-folder --target") {
+                folders.insert(name, key.to_uppercase());
+            }
+        }
+    }
+
+    let mut result = HashMap::new();
+    result.insert("apps".to_string(), apps);
+    result.insert("search".to_string(), search);
+    result.insert("folders".to_string(), folders);
+    Ok(result)
+}
+
+/// エイリアス行からキーとターゲット名を抽出する。
+/// 入力例: `a (cmd muhenkan-switch switch-app --target editor)`
+/// 戻り値: `Some(("a", "editor"))`
+fn parse_alias_line(rest: &str, command: &str) -> Option<(String, String)> {
+    // rest = "a (cmd muhenkan-switch switch-app --target editor)"
+    let key = rest.split_whitespace().next()?;
+    let target = rest.split(command).nth(1)?
+        .trim()
+        .trim_end_matches(')')
+        .trim();
+    if target.is_empty() {
+        return None;
+    }
+    Some((key.to_string(), target.to_string()))
+}
+
+/// アプリ起動時のセットアップ（kanata 自動開始 + 状態監視スレッド起動）
 pub fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let app_handle = app.handle().clone();
+    // kanata を自動開始
     let manager = app.state::<KanataManager>();
+    if let Err(e) = manager.start() {
+        eprintln!("[kanata] 自動開始に失敗: {:#}", e);
+    }
+
+    let app_handle = app.handle().clone();
     let child_ref = Arc::clone(&manager.child);
 
     // 状態監視スレッド

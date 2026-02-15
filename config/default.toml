@@ -20,16 +20,15 @@ onedrive = "~/OneDrive"
 trash = ""
 
 # ── アプリ切り替え ──
-# Windows: プロセス名（拡張子なし）
-# Linux: wmctrl / xdotool で検索するウィンドウ名
-# macOS: アプリケーション名（未検証）
+# process: プロセス名（.exe 不要）。ウィンドウ検索に使用
+# command: 実行コマンド。アプリ未起動時の起動に使用（省略時は process 名で起動）
 [apps]
-editor = "Code"
-word = "WINWORD"
-email = "OUTLOOK"
-slides = "POWERPNT"
-pdf = "SumatraPDF"
-browser = "firefox"
+editor = {process = "Code", command = "code"}
+word = {process = "WINWORD", command = "winword"}
+email = {process = "OUTLOOK", command = "outlook"}
+slides = {process = "POWERPNT", command = "powerpnt"}
+pdf = {process = "SumatraPDF", command = "sumatrapdf"}
+browser = {process = "firefox", command = "firefox"}
 
 # ── タイムスタンプ ──
 [timestamp]

@@ -7,6 +7,7 @@ license = "GPL-2.0-only"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+indexmap = { version = "2", features = ["serde"] }
 toml = "0.8"
 toml_edit = "0.22"
 anyhow = "1"

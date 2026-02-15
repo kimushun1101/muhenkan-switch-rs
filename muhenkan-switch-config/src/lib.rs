@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 // ── Types ──
@@ -11,8 +11,8 @@ pub enum AppEntry {
     Simple(String),
     Detailed {
         process: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        launch: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none", alias = "launch")]
+        command: Option<String>,
     },
 }
 
@@ -24,10 +24,13 @@ impl AppEntry {
         }
     }
 
-    pub fn launch(&self) -> Option<&str> {
+    /// 起動コマンドを返す。未設定の場合はプロセス名をフォールバックとして使う。
+    pub fn command(&self) -> Option<&str> {
         match self {
-            AppEntry::Simple(_) => None,
-            AppEntry::Detailed { launch, .. } => launch.as_deref(),
+            AppEntry::Simple(name) => Some(name.as_str()),
+            AppEntry::Detailed { process, command } => {
+                Some(command.as_deref().unwrap_or(process.as_str()))
+            }
         }
     }
 }
@@ -35,11 +38,11 @@ impl AppEntry {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
     #[serde(default)]
-    pub search: HashMap<String, String>,
+    pub search: IndexMap<String, String>,
     #[serde(default)]
-    pub folders: HashMap<String, String>,
+    pub folders: IndexMap<String, String>,
     #[serde(default)]
-    pub apps: HashMap<String, AppEntry>,
+    pub apps: IndexMap<String, AppEntry>,
     #[serde(default)]
     pub timestamp: TimestampConfig,
 }
@@ -120,14 +123,14 @@ pub fn load() -> Result<Config> {
 pub fn default_config() -> Config {
     Config {
         search: default_search_engines(),
-        folders: HashMap::new(),
-        apps: HashMap::new(),
+        folders: IndexMap::new(),
+        apps: IndexMap::new(),
         timestamp: TimestampConfig::default(),
     }
 }
 
-fn default_search_engines() -> HashMap<String, String> {
-    let mut m = HashMap::new();
+fn default_search_engines() -> IndexMap<String, String> {
+    let mut m = IndexMap::new();
     m.insert(
         "google".to_string(),
         "https://www.google.com/search?q={query}".to_string(),
@@ -154,19 +157,13 @@ pub fn save(path: &std::path::Path, config: &Config) -> Result<()> {
 
     let mut doc = existing;
 
-    // [search] セクション
+    // [search] セクション — 順序を保持するため全削除→再挿入
     let search_table = doc
         .entry("search")
         .or_insert_with(|| Item::Table(Table::new()))
         .as_table_mut()
         .context("search section is not a table")?;
-    // Remove keys not in config
-    let existing_keys: Vec<String> = search_table.iter().map(|(k, _)| k.to_string()).collect();
-    for key in &existing_keys {
-        if !config.search.contains_key(key) {
-            search_table.remove(key);
-        }
-    }
+    search_table.clear();
     for (key, value) in &config.search {
         search_table[key] = toml_edit::value(value);
     }
@@ -177,12 +174,7 @@ pub fn save(path: &std::path::Path, config: &Config) -> Result<()> {
         .or_insert_with(|| Item::Table(Table::new()))
         .as_table_mut()
         .context("folders section is not a table")?;
-    let existing_keys: Vec<String> = folders_table.iter().map(|(k, _)| k.to_string()).collect();
-    for key in &existing_keys {
-        if !config.folders.contains_key(key) {
-            folders_table.remove(key);
-        }
-    }
+    folders_table.clear();
     for (key, value) in &config.folders {
         folders_table[key] = toml_edit::value(value);
     }
@@ -193,22 +185,17 @@ pub fn save(path: &std::path::Path, config: &Config) -> Result<()> {
         .or_insert_with(|| Item::Table(Table::new()))
         .as_table_mut()
         .context("apps section is not a table")?;
-    let existing_keys: Vec<String> = apps_table.iter().map(|(k, _)| k.to_string()).collect();
-    for key in &existing_keys {
-        if !config.apps.contains_key(key) {
-            apps_table.remove(key);
-        }
-    }
+    apps_table.clear();
     for (key, entry) in &config.apps {
         match entry {
             AppEntry::Simple(name) => {
                 apps_table[key] = toml_edit::value(name);
             }
-            AppEntry::Detailed { process, launch } => {
+            AppEntry::Detailed { process, command } => {
                 let mut inline = InlineTable::new();
                 inline.insert("process", Value::from(process.as_str()));
-                if let Some(launch_cmd) = launch {
-                    inline.insert("launch", Value::from(launch_cmd.as_str()));
+                if let Some(cmd) = command {
+                    inline.insert("command", Value::from(cmd.as_str()));
                 }
                 apps_table[key] = toml_edit::value(inline);
             }
@@ -265,7 +252,7 @@ pub fn validate(config: &Config) -> Vec<String> {
 // ── Helper ──
 
 /// 設定から指定キーの値を取得するヘルパー
-pub fn get_value<'a>(map: &'a HashMap<String, String>, key: &str, label: &str) -> Result<&'a str> {
+pub fn get_value<'a>(map: &'a IndexMap<String, String>, key: &str, label: &str) -> Result<&'a str> {
     map.get(key)
         .map(|s| s.as_str())
         .ok_or_else(|| anyhow::anyhow!("{} '{}' is not defined in config.toml", label, key))

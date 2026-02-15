@@ -81,6 +81,15 @@ summary: muhenkan-switchをkanata＋Rust製muhenkan-switchバイナリ構成でW
 
 ---
 
+## kanata プロセス管理
+
+GUI (Tauri) から kanata プロセスの開始・停止・再起動を行う。
+
+- **再起動の用途:** kanata は `.kbd` 設定ファイルの変更を自動検知しないため、設定編集後に再起動して反映する
+- バイナリ探索は exe 同梱ディレクトリ → カレントディレクトリ → ワークスペースルートの順にフォールバック
+
+---
+
 ## 無変換キーのOS間対応
 
 | OS | kanata キー名 | 備考 |

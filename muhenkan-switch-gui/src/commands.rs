@@ -58,17 +58,24 @@ pub fn get_kanata_status(manager: State<KanataManager>) -> KanataStatus {
 
 #[tauri::command]
 pub fn start_kanata(manager: State<KanataManager>) -> Result<(), String> {
-    manager.start().map_err(|e| e.to_string())
+    manager.start().map_err(|e| format!("{:#}", e))
 }
 
 #[tauri::command]
 pub fn stop_kanata(manager: State<KanataManager>) -> Result<(), String> {
-    manager.stop().map_err(|e| e.to_string())
+    manager.stop().map_err(|e| format!("{:#}", e))
 }
 
 #[tauri::command]
 pub fn restart_kanata(manager: State<KanataManager>) -> Result<(), String> {
-    manager.restart().map_err(|e| e.to_string())
+    manager.restart().map_err(|e| format!("{:#}", e))
+}
+
+// ── Key bindings ──
+
+#[tauri::command]
+pub fn get_key_bindings() -> Result<std::collections::HashMap<String, std::collections::HashMap<String, String>>, String> {
+    crate::kanata::parse_key_bindings().map_err(|e| format!("{:#}", e))
 }
 
 // ── Process list (for app selection) ──

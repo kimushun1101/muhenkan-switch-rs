@@ -4,6 +4,7 @@ const { listen } = window.__TAURI__.event;
 // ── State ──
 let config = null;       // Current config from backend
 let guiSettings = {};    // GUI-only settings
+let keyBindings = {};    // kbd file key bindings { apps: {editor: "A"}, ... }
 
 // ── Tab switching ──
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -100,24 +101,74 @@ document.getElementById("ts-format-custom").addEventListener("input", () => {
   updateTimestampPreview();
 });
 
+// ── Drag reordering (mouse event based) ──
+let dragState = null;
+
+function enableDragReorder(row) {
+  const handle = document.createElement("span");
+  handle.className = "drag-handle";
+  handle.textContent = "≡";
+  handle.title = "ドラッグで並べ替え";
+  row.prepend(handle);
+
+  handle.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    const container = row.parentElement;
+    row.classList.add("dragging");
+    dragState = { row, container, startY: e.clientY };
+
+    function onMouseMove(e) {
+      if (!dragState) return;
+      const siblings = [...container.querySelectorAll(".list-row:not(.dragging)")];
+      for (const sibling of siblings) {
+        const rect = sibling.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        if (e.clientY < mid) {
+          container.insertBefore(dragState.row, sibling);
+          return;
+        }
+      }
+      // Past all siblings — move to end
+      container.appendChild(dragState.row);
+    }
+
+    function onMouseUp() {
+      if (dragState) {
+        dragState.row.classList.remove("dragging");
+        dragState = null;
+      }
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    }
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  });
+}
+
 // ── Search engines ──
 function renderSearchList() {
   const container = document.getElementById("search-list");
   container.innerHTML = "";
+  const bindings = keyBindings.search || {};
   for (const [key, url] of Object.entries(config.search || {})) {
-    addSearchRow(container, key, url);
+    const boundKey = bindings[key] || "";
+    addSearchRow(container, key, url, boundKey);
   }
 }
 
-function addSearchRow(container, key = "", url = "") {
+function addSearchRow(container, key = "", url = "", boundKey = "") {
   const row = document.createElement("div");
   row.className = "list-row";
+  const keyLabel = boundKey ? `<span class="bound-key" title="無変換+${escapeHtml(boundKey)}">${escapeHtml(boundKey)}</span>` : "";
   row.innerHTML = `
+    ${keyLabel}
     <input type="text" class="key-input" placeholder="キー" value="${escapeHtml(key)}">
     <input type="text" placeholder="URL テンプレート ({query})" value="${escapeHtml(url)}">
     <button class="btn-remove" title="削除">&times;</button>
   `;
   row.querySelector(".btn-remove").addEventListener("click", () => row.remove());
+  enableDragReorder(row);
   container.appendChild(row);
 }
 
@@ -129,15 +180,19 @@ document.getElementById("btn-add-search").addEventListener("click", () => {
 function renderFoldersList() {
   const container = document.getElementById("folders-list");
   container.innerHTML = "";
+  const bindings = keyBindings.folders || {};
   for (const [key, path] of Object.entries(config.folders || {})) {
-    addFolderRow(container, key, path);
+    const boundKey = bindings[key] || "";
+    addFolderRow(container, key, path, boundKey);
   }
 }
 
-function addFolderRow(container, key = "", path = "") {
+function addFolderRow(container, key = "", path = "", boundKey = "") {
   const row = document.createElement("div");
   row.className = "list-row";
+  const keyLabel = boundKey ? `<span class="bound-key" title="無変換+${escapeHtml(boundKey)}">${escapeHtml(boundKey)}</span>` : "";
   row.innerHTML = `
+    ${keyLabel}
     <input type="text" class="key-input" placeholder="キー" value="${escapeHtml(key)}">
     <input type="text" class="path-input" placeholder="パス (~/Documents)" value="${escapeHtml(path)}">
     <button class="btn-browse" title="参照">参照</button>
@@ -154,6 +209,7 @@ function addFolderRow(container, key = "", path = "") {
       console.error("フォルダ選択に失敗:", e);
     }
   });
+  enableDragReorder(row);
   container.appendChild(row);
 }
 
@@ -165,20 +221,24 @@ document.getElementById("btn-add-folder").addEventListener("click", () => {
 function renderAppsList() {
   const container = document.getElementById("apps-list");
   container.innerHTML = "";
+  const bindings = keyBindings.apps || {};
   for (const [key, entry] of Object.entries(config.apps || {})) {
     const process = typeof entry === "string" ? entry : entry.process;
-    const launch = typeof entry === "string" ? "" : entry.launch || "";
-    addAppRow(container, key, process, launch);
+    const command = typeof entry === "string" ? "" : entry.command || "";
+    const boundKey = bindings[key] || "";
+    addAppRow(container, key, process, command, boundKey);
   }
 }
 
-function addAppRow(container, key = "", process = "", launch = "") {
+function addAppRow(container, key = "", process = "", command = "", boundKey = "") {
   const row = document.createElement("div");
   row.className = "list-row";
+  const keyLabel = boundKey ? `<span class="bound-key" title="無変換+${escapeHtml(boundKey)}">${escapeHtml(boundKey)}</span>` : "";
   row.innerHTML = `
+    ${keyLabel}
     <input type="text" class="key-input" placeholder="キー" value="${escapeHtml(key)}">
     <input type="text" class="process-input" placeholder="プロセス名" value="${escapeHtml(process)}">
-    <input type="text" class="launch-input" placeholder="起動コマンド (任意)" value="${escapeHtml(launch)}">
+    <input type="text" class="command-input" placeholder="実行コマンド" value="${escapeHtml(command)}">
     <button class="btn-pick-process" title="プロセス選択">選択</button>
     <button class="btn-remove" title="削除">&times;</button>
   `;
@@ -187,8 +247,10 @@ function addAppRow(container, key = "", process = "", launch = "") {
     const selected = await showProcessPicker();
     if (selected) {
       row.querySelector(".process-input").value = selected;
+      row.querySelector(".command-input").value = selected.toLowerCase();
     }
   });
+  enableDragReorder(row);
   container.appendChild(row);
 }
 
@@ -240,8 +302,7 @@ async function showProcessPicker() {
           if (name.toLowerCase().endsWith(".exe")) {
             name = name.slice(0, -4);
           }
-          overlay.remove();
-          resolve(name);
+          close(name);
         });
         list.appendChild(li);
       }
@@ -251,17 +312,22 @@ async function showProcessPicker() {
       renderProcessList(e.target.value);
     });
 
-    overlay.querySelector(".btn-cancel").addEventListener("click", () => {
+    function close(result) {
       overlay.remove();
-      resolve(null);
-    });
+      document.removeEventListener("keydown", onKeydown);
+      resolve(result);
+    }
+
+    overlay.querySelector(".btn-cancel").addEventListener("click", () => close(null));
 
     overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) {
-        overlay.remove();
-        resolve(null);
-      }
+      if (e.target === overlay) close(null);
     });
+
+    function onKeydown(e) {
+      if (e.key === "Escape") close(null);
+    }
+    document.addEventListener("keydown", onKeydown);
 
     renderProcessList();
     document.body.appendChild(overlay);
@@ -299,10 +365,10 @@ function collectConfig() {
   for (const row of document.querySelectorAll("#apps-list .list-row")) {
     const key = row.querySelector(".key-input").value.trim();
     const process = row.querySelector(".process-input").value.trim();
-    const launch = row.querySelector(".launch-input").value.trim();
+    const command = row.querySelector(".command-input").value.trim();
     if (key) {
-      if (launch) {
-        collected.apps[key] = { process, launch };
+      if (command) {
+        collected.apps[key] = { process, command };
       } else {
         collected.apps[key] = process;
       }
@@ -383,6 +449,11 @@ function updateKanataUI(running) {
   });
   text.textContent = running ? "実行中" : "停止中";
   footerText.textContent = running ? "kanata: 実行中" : "kanata: 停止中";
+
+  // ボタンの有効/無効を切り替え
+  document.getElementById("btn-kanata-start").disabled = running;
+  document.getElementById("btn-kanata-stop").disabled = !running;
+  document.getElementById("btn-kanata-restart").disabled = !running;
 }
 
 // Listen for status changes from backend
@@ -415,7 +486,16 @@ function escapeHtml(str) {
 }
 
 // ── Initialize ──
+async function loadKeyBindings() {
+  try {
+    keyBindings = await invoke("get_key_bindings");
+  } catch (e) {
+    console.error("キーバインドの読み込みに失敗:", e);
+  }
+}
+
 async function init() {
+  await loadKeyBindings();
   await loadConfig();
   await refreshKanataStatus();
   await loadAutostart();
