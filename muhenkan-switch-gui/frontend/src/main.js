@@ -4,7 +4,13 @@ const { listen } = window.__TAURI__.event;
 // ── State ──
 let config = null;       // Current config from backend
 let guiSettings = {};    // GUI-only settings
-let keyBindings = {};    // kbd file key bindings { apps: {editor: "A"}, ... }
+
+// ── Available dispatch keys (must match kbd file) ──
+const DISPATCH_KEYS = [
+  "1", "2", "3", "4", "5",
+  "q", "r", "t", "g",
+  "a", "w", "e", "s", "d", "f",
+];
 
 // ── Tab switching ──
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -101,74 +107,49 @@ document.getElementById("ts-format-custom").addEventListener("input", () => {
   updateTimestampPreview();
 });
 
-// ── Drag reordering (mouse event based) ──
-let dragState = null;
+// ── Dispatch key dropdown helper ──
+function createDispatchKeySelect(selectedKey = "") {
+  const select = document.createElement("select");
+  select.className = "dispatch-key-select";
+  select.title = "無変換+キー";
 
-function enableDragReorder(row) {
-  const handle = document.createElement("span");
-  handle.className = "drag-handle";
-  handle.textContent = "≡";
-  handle.title = "ドラッグで並べ替え";
-  row.prepend(handle);
+  const noneOpt = document.createElement("option");
+  noneOpt.value = "";
+  noneOpt.textContent = "—";
+  select.appendChild(noneOpt);
 
-  handle.addEventListener("mousedown", (e) => {
-    e.preventDefault();
-    const container = row.parentElement;
-    row.classList.add("dragging");
-    dragState = { row, container, startY: e.clientY };
+  for (const k of DISPATCH_KEYS) {
+    const opt = document.createElement("option");
+    opt.value = k;
+    opt.textContent = k.toUpperCase();
+    select.appendChild(opt);
+  }
 
-    function onMouseMove(e) {
-      if (!dragState) return;
-      const siblings = [...container.querySelectorAll(".list-row:not(.dragging)")];
-      for (const sibling of siblings) {
-        const rect = sibling.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        if (e.clientY < mid) {
-          container.insertBefore(dragState.row, sibling);
-          return;
-        }
-      }
-      // Past all siblings — move to end
-      container.appendChild(dragState.row);
-    }
-
-    function onMouseUp() {
-      if (dragState) {
-        dragState.row.classList.remove("dragging");
-        dragState = null;
-      }
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    }
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-  });
+  select.value = selectedKey || "";
+  return select;
 }
 
 // ── Search engines ──
 function renderSearchList() {
   const container = document.getElementById("search-list");
   container.innerHTML = "";
-  const bindings = keyBindings.search || {};
-  for (const [key, url] of Object.entries(config.search || {})) {
-    const boundKey = bindings[key] || "";
-    addSearchRow(container, key, url, boundKey);
+  for (const [name, entry] of Object.entries(config.search || {})) {
+    addSearchRow(container, name, entry.url, entry.key || "");
   }
 }
 
-function addSearchRow(container, key = "", url = "", boundKey = "") {
+function addSearchRow(container, name = "", url = "", dispatchKey = "") {
   const row = document.createElement("div");
   row.className = "list-row";
-  const keyLabel = boundKey ? `<span class="bound-key" title="無変換+${escapeHtml(boundKey)}">${escapeHtml(boundKey)}</span>` : "";
   row.innerHTML = `
-    ${keyLabel}
-    <input type="text" class="key-input" placeholder="キー" value="${escapeHtml(key)}">
+    <input type="text" class="key-input" placeholder="キー" value="${escapeHtml(name)}">
     <input type="text" placeholder="URL テンプレート ({query})" value="${escapeHtml(url)}">
     <button class="btn-remove" title="削除">&times;</button>
   `;
+  // Insert dispatch key select before the first input
+  const keySelect = createDispatchKeySelect(dispatchKey);
+  row.insertBefore(keySelect, row.firstChild);
   row.querySelector(".btn-remove").addEventListener("click", () => row.remove());
-  enableDragReorder(row);
   container.appendChild(row);
 }
 
@@ -180,24 +161,22 @@ document.getElementById("btn-add-search").addEventListener("click", () => {
 function renderFoldersList() {
   const container = document.getElementById("folders-list");
   container.innerHTML = "";
-  const bindings = keyBindings.folders || {};
-  for (const [key, path] of Object.entries(config.folders || {})) {
-    const boundKey = bindings[key] || "";
-    addFolderRow(container, key, path, boundKey);
+  for (const [name, entry] of Object.entries(config.folders || {})) {
+    addFolderRow(container, name, entry.path, entry.key || "");
   }
 }
 
-function addFolderRow(container, key = "", path = "", boundKey = "") {
+function addFolderRow(container, name = "", path = "", dispatchKey = "") {
   const row = document.createElement("div");
   row.className = "list-row";
-  const keyLabel = boundKey ? `<span class="bound-key" title="無変換+${escapeHtml(boundKey)}">${escapeHtml(boundKey)}</span>` : "";
   row.innerHTML = `
-    ${keyLabel}
-    <input type="text" class="key-input" placeholder="キー" value="${escapeHtml(key)}">
+    <input type="text" class="key-input" placeholder="キー" value="${escapeHtml(name)}">
     <input type="text" class="path-input" placeholder="パス (~/Documents)" value="${escapeHtml(path)}">
     <button class="btn-browse" title="参照">参照</button>
     <button class="btn-remove" title="削除">&times;</button>
   `;
+  const keySelect = createDispatchKeySelect(dispatchKey);
+  row.insertBefore(keySelect, row.firstChild);
   row.querySelector(".btn-remove").addEventListener("click", () => row.remove());
   row.querySelector(".btn-browse").addEventListener("click", async () => {
     try {
@@ -209,7 +188,6 @@ function addFolderRow(container, key = "", path = "", boundKey = "") {
       console.error("フォルダ選択に失敗:", e);
     }
   });
-  enableDragReorder(row);
   container.appendChild(row);
 }
 
@@ -221,27 +199,23 @@ document.getElementById("btn-add-folder").addEventListener("click", () => {
 function renderAppsList() {
   const container = document.getElementById("apps-list");
   container.innerHTML = "";
-  const bindings = keyBindings.apps || {};
-  for (const [key, entry] of Object.entries(config.apps || {})) {
-    const process = typeof entry === "string" ? entry : entry.process;
-    const command = typeof entry === "string" ? "" : entry.command || "";
-    const boundKey = bindings[key] || "";
-    addAppRow(container, key, process, command, boundKey);
+  for (const [name, entry] of Object.entries(config.apps || {})) {
+    addAppRow(container, name, entry.process, entry.command || "", entry.key || "");
   }
 }
 
-function addAppRow(container, key = "", process = "", command = "", boundKey = "") {
+function addAppRow(container, name = "", process = "", command = "", dispatchKey = "") {
   const row = document.createElement("div");
   row.className = "list-row";
-  const keyLabel = boundKey ? `<span class="bound-key" title="無変換+${escapeHtml(boundKey)}">${escapeHtml(boundKey)}</span>` : "";
   row.innerHTML = `
-    ${keyLabel}
-    <input type="text" class="key-input" placeholder="キー" value="${escapeHtml(key)}">
+    <input type="text" class="key-input" placeholder="キー" value="${escapeHtml(name)}">
     <input type="text" class="process-input" placeholder="プロセス名" value="${escapeHtml(process)}">
     <input type="text" class="command-input" placeholder="実行コマンド" value="${escapeHtml(command)}">
     <button class="btn-pick-process" title="プロセス選択">選択</button>
     <button class="btn-remove" title="削除">&times;</button>
   `;
+  const keySelect = createDispatchKeySelect(dispatchKey);
+  row.insertBefore(keySelect, row.firstChild);
   row.querySelector(".btn-remove").addEventListener("click", () => row.remove());
   row.querySelector(".btn-pick-process").addEventListener("click", async () => {
     const selected = await showProcessPicker();
@@ -250,7 +224,6 @@ function addAppRow(container, key = "", process = "", command = "", boundKey = "
       row.querySelector(".command-input").value = selected.toLowerCase();
     }
   });
-  enableDragReorder(row);
   container.appendChild(row);
 }
 
@@ -335,6 +308,20 @@ async function showProcessPicker() {
   });
 }
 
+// ── Dispatch key duplicate validation ──
+function validateDispatchKeys() {
+  const usedKeys = {};
+  for (const select of document.querySelectorAll(".dispatch-key-select")) {
+    const key = select.value;
+    if (!key) continue;
+    if (usedKeys[key]) {
+      return `ディスパッチキー "${key.toUpperCase()}" が重複しています`;
+    }
+    usedKeys[key] = true;
+  }
+  return null;
+}
+
 // ── Collect config from UI ──
 function collectConfig() {
   const collected = {
@@ -349,29 +336,39 @@ function collectConfig() {
 
   // Search
   for (const row of document.querySelectorAll("#search-list .list-row")) {
-    const key = row.querySelector(".key-input").value.trim();
+    const name = row.querySelector(".key-input").value.trim();
     const url = row.querySelectorAll("input[type='text']")[1].value.trim();
-    if (key) collected.search[key] = url;
+    const dispatchKey = row.querySelector(".dispatch-key-select").value;
+    if (name) {
+      const entry = { url };
+      if (dispatchKey) entry.key = dispatchKey;
+      collected.search[name] = entry;
+    }
   }
 
   // Folders
   for (const row of document.querySelectorAll("#folders-list .list-row")) {
-    const key = row.querySelector(".key-input").value.trim();
+    const name = row.querySelector(".key-input").value.trim();
     const path = row.querySelector(".path-input").value.trim();
-    if (key) collected.folders[key] = path;
+    const dispatchKey = row.querySelector(".dispatch-key-select").value;
+    if (name) {
+      const entry = { path };
+      if (dispatchKey) entry.key = dispatchKey;
+      collected.folders[name] = entry;
+    }
   }
 
   // Apps
   for (const row of document.querySelectorAll("#apps-list .list-row")) {
-    const key = row.querySelector(".key-input").value.trim();
+    const name = row.querySelector(".key-input").value.trim();
     const process = row.querySelector(".process-input").value.trim();
     const command = row.querySelector(".command-input").value.trim();
-    if (key) {
-      if (command) {
-        collected.apps[key] = { process, command };
-      } else {
-        collected.apps[key] = process;
-      }
+    const dispatchKey = row.querySelector(".dispatch-key-select").value;
+    if (name) {
+      const entry = { process };
+      if (dispatchKey) entry.key = dispatchKey;
+      if (command) entry.command = command;
+      collected.apps[name] = entry;
     }
   }
 
@@ -380,11 +377,26 @@ function collectConfig() {
 
 // ── Apply / Reset / Defaults ──
 document.getElementById("btn-apply").addEventListener("click", async () => {
-  const newConfig = collectConfig();
   try {
+    // Client-side dispatch key validation
+    const dupError = validateDispatchKeys();
+    if (dupError) {
+      alert(dupError);
+      return;
+    }
+
+    const newConfig = collectConfig();
+    console.log("[apply] saving config:", JSON.stringify(newConfig).slice(0, 200));
     await invoke("save_config", { config: newConfig });
     config = newConfig;
+
+    // Brief save success indicator
+    const btn = document.getElementById("btn-apply");
+    const orig = btn.textContent;
+    btn.textContent = "保存しました";
+    setTimeout(() => { btn.textContent = orig; }, 1500);
   } catch (e) {
+    console.error("[apply] error:", e);
     alert("保存に失敗しました:\n" + e);
   }
 });
@@ -486,16 +498,7 @@ function escapeHtml(str) {
 }
 
 // ── Initialize ──
-async function loadKeyBindings() {
-  try {
-    keyBindings = await invoke("get_key_bindings");
-  } catch (e) {
-    console.error("キーバインドの読み込みに失敗:", e);
-  }
-}
-
 async function init() {
-  await loadKeyBindings();
   await loadConfig();
   await refreshKanataStatus();
   await loadAutostart();

@@ -71,13 +71,6 @@ pub fn restart_kanata(manager: State<KanataManager>) -> Result<(), String> {
     manager.restart().map_err(|e| format!("{:#}", e))
 }
 
-// ── Key bindings ──
-
-#[tauri::command]
-pub fn get_key_bindings() -> Result<std::collections::HashMap<String, std::collections::HashMap<String, String>>, String> {
-    crate::kanata::parse_key_bindings().map_err(|e| format!("{:#}", e))
-}
-
 // ── Process list (for app selection) ──
 
 #[derive(Serialize)]

@@ -6,6 +6,9 @@
 ;;
 ;; macOS では Karabiner-VirtualHIDDevice のインストールと sudo が必要です。
 ;; 起動: sudo kanata --cfg muhenkan-macos.kbd
+;;
+;; 検索・フォルダ・アプリのキー割り当ては config.toml で管理されています。
+;; kbd ファイルは汎用ディスパッチのみを定義します。
 
 (defcfg
   process-unmapped-keys yes
@@ -30,27 +33,27 @@
 (defalias
   mh (tap-hold 200 200 eisu (layer-while-held mh-layer))
 
-  srch-q (cmd muhenkan-switch search --engine ejje)
-  srch-r (cmd muhenkan-switch search --engine thesaurus)
-  srch-t (cmd muhenkan-switch search --engine translate)
-  srch-g (cmd muhenkan-switch search --engine google)
+  ;; 汎用ディスパッチ
+  dsp-1 (cmd muhenkan-switch dispatch 1)
+  dsp-2 (cmd muhenkan-switch dispatch 2)
+  dsp-3 (cmd muhenkan-switch dispatch 3)
+  dsp-4 (cmd muhenkan-switch dispatch 4)
+  dsp-5 (cmd muhenkan-switch dispatch 5)
+  dsp-q (cmd muhenkan-switch dispatch q)
+  dsp-r (cmd muhenkan-switch dispatch r)
+  dsp-t (cmd muhenkan-switch dispatch t)
+  dsp-g (cmd muhenkan-switch dispatch g)
+  dsp-a (cmd muhenkan-switch dispatch a)
+  dsp-w (cmd muhenkan-switch dispatch w)
+  dsp-e (cmd muhenkan-switch dispatch e)
+  dsp-s (cmd muhenkan-switch dispatch s)
+  dsp-d (cmd muhenkan-switch dispatch d)
+  dsp-f (cmd muhenkan-switch dispatch f)
 
-  app-a (cmd muhenkan-switch switch-app --target editor)
-  app-w (cmd muhenkan-switch switch-app --target word)
-  app-e (cmd muhenkan-switch switch-app --target email)
-  app-s (cmd muhenkan-switch switch-app --target slides)
-  app-d (cmd muhenkan-switch switch-app --target pdf)
-  app-f (cmd muhenkan-switch switch-app --target browser)
-
+  ;; 固定アクション
   ts-v (cmd muhenkan-switch timestamp --action paste)
   ts-c (cmd muhenkan-switch timestamp --action copy)
   ts-x (cmd muhenkan-switch timestamp --action cut)
-
-  fld-1 (cmd muhenkan-switch open-folder --target documents)
-  fld-2 (cmd muhenkan-switch open-folder --target downloads)
-  fld-3 (cmd muhenkan-switch open-folder --target desktop)
-  fld-4 (cmd muhenkan-switch open-folder --target onedrive)
-  fld-5 (cmd muhenkan-switch open-folder --target trash)
 
   prtsc (cmd muhenkan-switch screenshot)
 )
@@ -70,9 +73,9 @@
 
 (deflayer mh-layer
   _
-  @fld-1  @fld-2  @fld-3  @fld-4  @fld-5
-  @srch-q  @srch-r  @srch-t  @srch-g
-  @app-a  @app-w  @app-e  @app-s  @app-d  @app-f
+  @dsp-1  @dsp-2  @dsp-3  @dsp-4  @dsp-5
+  @dsp-q  @dsp-r  @dsp-t  @dsp-g
+  @dsp-a  @dsp-w  @dsp-e  @dsp-s  @dsp-d  @dsp-f
   @ts-v  @ts-c  @ts-x
   left  down  up  right
   C-left  C-right  home  end

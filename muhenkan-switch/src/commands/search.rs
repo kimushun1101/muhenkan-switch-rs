@@ -6,7 +6,7 @@ use crate::config::{self, Config};
 
 pub fn run(engine: &str, config: &Config) -> Result<()> {
     // 検索エンジンのURLテンプレートを取得
-    let url_template = config::get_value(&config.search, engine, "Search engine")?;
+    let url_template = config::get_search_url(&config.search, engine)?;
 
     // 選択テキストをクリップボードにコピー（Ctrl+C シミュレート）
     copy_selection()?;

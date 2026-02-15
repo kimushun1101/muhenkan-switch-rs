@@ -242,28 +242,6 @@ button:disabled {
   flex: none;
 }
 
-.list-row .drag-handle {
-  cursor: grab;
-  color: var(--text-dim);
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 2px;
-  flex-shrink: 0;
-  user-select: none;
-}
-
-.list-row .drag-handle:hover {
-  color: var(--text);
-}
-
-.list-row .drag-handle:active {
-  cursor: grabbing;
-}
-
-.list-row.dragging {
-  opacity: 0.4;
-}
-
 .list-row .btn-remove {
   padding: 4px 8px;
   color: var(--red);
@@ -287,20 +265,15 @@ button:disabled {
   font-size: 11px;
 }
 
-.list-row .bound-key {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-input);
-  color: var(--accent);
+.list-row .dispatch-key-select {
+  width: 52px;
+  flex: none;
+  padding: 4px 2px;
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  flex-shrink: 0;
+  color: var(--accent);
+  text-align: center;
 }
 
 /* ── Preview ── */

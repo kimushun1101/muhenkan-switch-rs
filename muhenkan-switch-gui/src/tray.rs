@@ -1,3 +1,6 @@
+use std::sync::Mutex;
+use std::time::Instant;
+
 use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager};
@@ -99,19 +102,29 @@ fn build_tray(handle: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 _ => {}
             }
         })
-        .on_tray_icon_event(|tray, event| {
-            if let tauri::tray::TrayIconEvent::Click {
-                button: tauri::tray::MouseButton::Left,
-                ..
-            } = event
-            {
-                let app = tray.app_handle();
-                if let Some(window) = app.get_webview_window("main") {
-                    if window.is_visible().unwrap_or(false) {
-                        let _ = window.hide();
-                    } else {
-                        let _ = window.show();
-                        let _ = window.set_focus();
+        .on_tray_icon_event({
+            let last_click = Mutex::new(Instant::now() - std::time::Duration::from_secs(1));
+            move |tray, event| {
+                if let tauri::tray::TrayIconEvent::Click {
+                    button: tauri::tray::MouseButton::Left,
+                    ..
+                } = event
+                {
+                    // デバウンス: 500ms 以内の重複クリックを無視
+                    let mut last = last_click.lock().unwrap();
+                    if last.elapsed().as_millis() < 500 {
+                        return;
+                    }
+                    *last = Instant::now();
+
+                    let app = tray.app_handle();
+                    if let Some(window) = app.get_webview_window("main") {
+                        if window.is_visible().unwrap_or(false) {
+                            let _ = window.hide();
+                        } else {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
                     }
                 }
             }
