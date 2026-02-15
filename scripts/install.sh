@@ -52,6 +52,7 @@ copy_file "muhenkan-switch" "muhenkan-switch"
 copy_file "config.toml" "config.toml"
 copy_file "muhenkan.kbd" "muhenkan.kbd"
 copy_file "update.sh" "update.sh"
+copy_file "uninstall.sh" "uninstall.sh"
 
 # muhenkan-switch に実行権限を付与
 chmod +x "$INSTALL_DIR/muhenkan-switch" 2>/dev/null || true

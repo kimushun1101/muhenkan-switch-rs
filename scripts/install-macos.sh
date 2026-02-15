@@ -84,6 +84,7 @@ copy_file "muhenkan-switch" "muhenkan-switch"
 copy_file "config.toml" "config.toml"
 copy_file "muhenkan-macos.kbd" "muhenkan-macos.kbd"
 copy_file "update-macos.sh" "update-macos.sh"
+copy_file "uninstall-macos.sh" "uninstall-macos.sh"
 
 # muhenkan-switch に実行権限を付与
 chmod +x "$INSTALL_DIR/muhenkan-switch" 2>/dev/null || true

@@ -138,15 +138,22 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 
 ### アンインストール
 
-リリースアーカイブに同梱のアンインストールスクリプトを実行してください:
+インストール先にあるアンインストールスクリプトを実行してください:
 
-- **Windows**: `uninstall.ps1` を右クリック →「PowerShell で実行」
-- **Linux**: `./uninstall.sh`
-- **macOS**: `./uninstall-macos.sh`
+```bash
+# Windows（PowerShell）
+& "$env:LOCALAPPDATA\muhenkan-switch-rs\uninstall.ps1"
 
-スクリプトが手元にない場合は、Releases から再ダウンロードするか、手動で以下を削除してください:
+# Linux
+~/.local/share/muhenkan-switch-rs/uninstall.sh
+
+# macOS
+~/Library/Application\ Support/muhenkan-switch-rs/uninstall-macos.sh
+```
+
+手動で削除する場合は、以下を削除してください:
 - インストールディレクトリ（上記表を参照）
-- PATH からインストールディレクトリを除去
+- PATH からインストールディレクトリを除去（Windows のみ）
 - 自動起動設定（Windows: スタートアップショートカット、Linux: systemd サービス、macOS: launchd エージェント）
 
 ### 更新
