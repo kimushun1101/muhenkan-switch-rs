@@ -3,13 +3,14 @@
 #   mise install         Rust ツールチェーンのセットアップ
 #   mise run build       debug ビルド → ルートにコピー
 #   mise run release     release ビルド → ルートにコピー
-#   mise run run         ビルド後、kanata も起動
+#   mise run dev         ビルド後、kanata も起動
 
 [tools]
 rust = "1.93"
 
 [tasks.build]
 description = "Build muhenkan-switch (debug)"
+shell = "bash -c"
 run = """
 cargo build --manifest-path muhenkan-switch/Cargo.toml
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
@@ -19,6 +20,7 @@ echo "[dev] Copied -> ./muhenkan-switch${EXT}"
 
 [tasks.release]
 description = "Build muhenkan-switch (release)"
+shell = "bash -c"
 run = """
 cargo build --release --manifest-path muhenkan-switch/Cargo.toml
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
@@ -26,9 +28,10 @@ cp "muhenkan-switch/target/release/muhenkan-switch${EXT}" "./muhenkan-switch${EX
 echo "[dev] Copied -> ./muhenkan-switch${EXT}"
 """
 
-[tasks.run]
+[tasks.dev]
 description = "Build and start kanata"
 depends = ["build"]
+shell = "bash -c"
 run = """
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
 KANATA="./kanata_cmd_allowed${EXT}"
