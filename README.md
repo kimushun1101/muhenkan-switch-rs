@@ -162,13 +162,29 @@ kanata の設定ガイドは [こちら](https://github.com/jtroo/kanata/wiki/Co
 
 ## 開発
 
+### 前提条件
+
+- [Rust ツールチェーン](https://rustup.rs/)
+- [mise](https://mise.jdx.dev/)（タスクランナーとして使用）
+
 ```bash
-# Rust ツールチェーンのインストール
+# Rust のインストール
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# ビルド
-cd muhenkan-switch
-cargo build --release
+# mise のインストール (Linux/macOS)
+curl https://mise.jdx.dev/install.sh | sh
+
+# mise のインストール (Windows - PowerShell)
+# winget install jdx.mise
+# または Scoop: scoop install mise
+```
+
+### 開発タスク
+
+```bash
+mise run build      # debug ビルド → ルートにコピー
+mise run release    # release ビルド → ルートにコピー
+mise run run        # debug ビルド後、kanata も起動
 ```
 
 ## ライセンス
