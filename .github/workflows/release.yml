@@ -39,7 +39,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build muhenkan-switch
-        working-directory: companion
+        working-directory: muhenkan-switch
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Package release
