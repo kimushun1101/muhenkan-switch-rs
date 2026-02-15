@@ -1,4 +1,3 @@
-﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     muhenkan-switch-rs ワンライナーインストーラー (Windows)
