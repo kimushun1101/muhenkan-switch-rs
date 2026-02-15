@@ -32,13 +32,43 @@
 
 ## セットアップ
 
-### 1. ダウンロード・インストール
+### 1. インストール
+
+以下のコマンドをターミナルに貼り付けて実行するだけで、最新版のダウンロードからインストールまで自動で行われます。
+
+**Linux / macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/kimushun1101/muhenkan-switch-rs/main/scripts/get.sh | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/kimushun1101/muhenkan-switch-rs/main/scripts/get.ps1 | iex
+```
+
+> **セキュリティについて**: スクリプトの内容を事前に確認したい場合は、先にダウンロードしてから実行できます。
+> ```bash
+> # Linux / macOS
+> curl -fsSL https://raw.githubusercontent.com/kimushun1101/muhenkan-switch-rs/main/scripts/get.sh -o get.sh
+> less get.sh    # 内容を確認
+> bash get.sh    # 実行
+> ```
+> ```powershell
+> # Windows
+> irm https://raw.githubusercontent.com/kimushun1101/muhenkan-switch-rs/main/scripts/get.ps1 -OutFile get.ps1
+> Get-Content get.ps1   # 内容を確認
+> .\get.ps1             # 実行
+> ```
+
+<details>
+<summary>手動インストール（アーカイブをダウンロードする方法）</summary>
 
 [Releases](https://github.com/kimushun1101/muhenkan-switch-rs/releases) から
 お使いの OS 用のアーカイブをダウンロード・展開し、インストールスクリプトを実行してください。
 
 ```
-# Windows: install.ps1 を右クリック →「PowerShell で実行」
+# Windows: install.bat をダブルクリック
+# または install.ps1 を右クリック →「PowerShell で実行」
 
 # Linux
 ./install.sh
@@ -46,6 +76,8 @@
 # macOS
 ./install-macos.sh
 ```
+
+</details>
 
 インストールスクリプトは以下を自動で行います:
 - kanata のダウンロード（GitHub Releases から）

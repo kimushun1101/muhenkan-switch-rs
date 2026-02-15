@@ -67,6 +67,9 @@ jobs:
               cp scripts/install.ps1 "$RELEASE_DIR/"
               cp scripts/uninstall.ps1 "$RELEASE_DIR/"
               cp scripts/update.ps1 "$RELEASE_DIR/"
+              cp scripts/install.bat "$RELEASE_DIR/"
+              cp scripts/uninstall.bat "$RELEASE_DIR/"
+              cp scripts/update.bat "$RELEASE_DIR/"
               ;;
             linux-x64)
               cp scripts/install.sh "$RELEASE_DIR/"
@@ -117,13 +120,22 @@ jobs:
           body: |
             ## muhenkan-switch-rs
 
-            各OS向けのアーカイブをダウンロードしてください。
-            展開後、同梱のインストールスクリプトを実行すると kanata のダウンロードや PATH 設定が自動で行われます。
+            ### ワンライナーインストール（推奨）
 
-            ### インストール方法
+            **Linux / macOS:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/kimushun1101/muhenkan-switch-rs/main/scripts/get.sh | sh
+            ```
+
+            **Windows (PowerShell):**
+            ```powershell
+            irm https://raw.githubusercontent.com/kimushun1101/muhenkan-switch-rs/main/scripts/get.ps1 | iex
+            ```
+
+            ### 手動インストール
             1. アーカイブをダウンロード・展開
             2. インストールスクリプトを実行
-               - **Windows**: `install.ps1` を右クリック →「PowerShell で実行」
+               - **Windows**: `install.bat` をダブルクリック、または `install.ps1` を右クリック →「PowerShell で実行」
                - **Linux**: `./install.sh`
                - **macOS**: `./install-macos.sh`
 
