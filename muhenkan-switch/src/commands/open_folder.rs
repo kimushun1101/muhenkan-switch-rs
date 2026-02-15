@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::config::{self, Config};
 
 pub fn run(target: &str, config: &Config) -> Result<()> {
-    let path_str = config::get_value(&config.folders, target, "Folder")?;
+    let path_str = config::get_folder_path(&config.folders, target)?;
 
     if path_str.is_empty() {
         anyhow::bail!("Folder '{}' is not configured in config.toml (empty value)", target);

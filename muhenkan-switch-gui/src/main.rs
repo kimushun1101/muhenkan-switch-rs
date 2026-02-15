@@ -30,7 +30,6 @@ fn main() {
             commands::open_install_dir,
             commands::open_config_in_editor,
             commands::validate_timestamp_format,
-            commands::get_key_bindings,
         ])
         .setup(|app| {
             tray::setup(app)?;

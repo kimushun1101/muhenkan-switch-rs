@@ -2,33 +2,36 @@
 # muhenkan-switch バイナリと同じディレクトリに配置してください。
 
 # ── 検索エンジン ──
-# {query} が選択テキスト（URLエンコード済み）に置換されます
+# key: ディスパッチキー（無変換+key で発動）
+# url: {query} が選択テキスト（URLエンコード済み）に置換されます
 [search]
-google = "https://www.google.com/search?q={query}"
-ejje = "https://ejje.weblio.jp/content/{query}"
-thesaurus = "https://thesaurus.weblio.jp/content/{query}"
-translate = "https://translate.google.com/?sl=auto&tl=en&text={query}"
+google = {key = "g", url = "https://www.google.com/search?q={query}"}
+ejje = {key = "q", url = "https://ejje.weblio.jp/content/{query}"}
+thesaurus = {key = "r", url = "https://thesaurus.weblio.jp/content/{query}"}
+translate = {key = "t", url = "https://translate.google.com/?sl=auto&tl=en&text={query}"}
 
 # ── フォルダ ──
-# ~ はホームディレクトリに展開されます
+# key: ディスパッチキー（無変換+key で発動）
+# path: ~ はホームディレクトリに展開されます
 [folders]
-documents = "~/Documents"
-downloads = "~/Downloads"
-desktop = "~/Desktop"
-onedrive = "~/OneDrive"
+documents = {key = "1", path = "~/Documents"}
+downloads = {key = "2", path = "~/Downloads"}
+desktop = {key = "3", path = "~/Desktop"}
+onedrive = {key = "4", path = "~/OneDrive"}
 # trash は OS によりパスが異なります。空欄の場合はデフォルト動作
-trash = ""
+trash = {key = "5", path = ""}
 
 # ── アプリ切り替え ──
+# key: ディスパッチキー（無変換+key で発動）
 # process: プロセス名（.exe 不要）。ウィンドウ検索に使用
 # command: 実行コマンド。アプリ未起動時の起動に使用（省略時は process 名で起動）
 [apps]
-editor = {process = "Code", command = "code"}
-word = {process = "WINWORD", command = "winword"}
-email = {process = "OUTLOOK", command = "outlook"}
-slides = {process = "POWERPNT", command = "powerpnt"}
-pdf = {process = "SumatraPDF", command = "sumatrapdf"}
-browser = {process = "firefox", command = "firefox"}
+editor = {key = "a", process = "Code", command = "code"}
+word = {key = "w", process = "WINWORD", command = "winword"}
+email = {key = "e", process = "OUTLOOK", command = "outlook"}
+slides = {key = "s", process = "POWERPNT", command = "powerpnt"}
+pdf = {key = "d", process = "SumatraPDF", command = "sumatrapdf"}
+browser = {key = "f", process = "firefox", command = "firefox"}
 
 # ── タイムスタンプ ──
 [timestamp]

@@ -3,13 +3,78 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+// ── Dispatch keys ──
+
+/// kbd ファイルでディスパッチに割り当てられている物理キーの一覧。
+pub const DISPATCH_KEYS: &[&str] = &[
+    "1", "2", "3", "4", "5",
+    "q", "r", "t", "g",
+    "a", "w", "e", "s", "d", "f",
+];
+
 // ── Types ──
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum SearchEntry {
+    Simple(String),
+    Detailed {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        key: Option<String>,
+        url: String,
+    },
+}
+
+impl SearchEntry {
+    pub fn url(&self) -> &str {
+        match self {
+            SearchEntry::Simple(url) => url,
+            SearchEntry::Detailed { url, .. } => url,
+        }
+    }
+
+    pub fn dispatch_key(&self) -> Option<&str> {
+        match self {
+            SearchEntry::Simple(_) => None,
+            SearchEntry::Detailed { key, .. } => key.as_deref(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum FolderEntry {
+    Simple(String),
+    Detailed {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        key: Option<String>,
+        path: String,
+    },
+}
+
+impl FolderEntry {
+    pub fn path(&self) -> &str {
+        match self {
+            FolderEntry::Simple(path) => path,
+            FolderEntry::Detailed { path, .. } => path,
+        }
+    }
+
+    pub fn dispatch_key(&self) -> Option<&str> {
+        match self {
+            FolderEntry::Simple(_) => None,
+            FolderEntry::Detailed { key, .. } => key.as_deref(),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum AppEntry {
     Simple(String),
     Detailed {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        key: Option<String>,
         process: String,
         #[serde(skip_serializing_if = "Option::is_none", alias = "launch")]
         command: Option<String>,
@@ -28,23 +93,65 @@ impl AppEntry {
     pub fn command(&self) -> Option<&str> {
         match self {
             AppEntry::Simple(name) => Some(name.as_str()),
-            AppEntry::Detailed { process, command } => {
+            AppEntry::Detailed { process, command, .. } => {
                 Some(command.as_deref().unwrap_or(process.as_str()))
             }
         }
     }
+
+    pub fn dispatch_key(&self) -> Option<&str> {
+        match self {
+            AppEntry::Simple(_) => None,
+            AppEntry::Detailed { key, .. } => key.as_deref(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum DispatchAction {
+    Search { engine: String },
+    OpenFolder { target: String },
+    SwitchApp { target: String },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
     #[serde(default)]
-    pub search: IndexMap<String, String>,
+    pub search: IndexMap<String, SearchEntry>,
     #[serde(default)]
-    pub folders: IndexMap<String, String>,
+    pub folders: IndexMap<String, FolderEntry>,
     #[serde(default)]
     pub apps: IndexMap<String, AppEntry>,
     #[serde(default)]
     pub timestamp: TimestampConfig,
+}
+
+impl Config {
+    /// ディスパッチキーに対応するアクションを検索する。
+    pub fn dispatch_lookup(&self, key: &str) -> Option<DispatchAction> {
+        for (name, entry) in &self.search {
+            if entry.dispatch_key() == Some(key) {
+                return Some(DispatchAction::Search {
+                    engine: name.clone(),
+                });
+            }
+        }
+        for (name, entry) in &self.folders {
+            if entry.dispatch_key() == Some(key) {
+                return Some(DispatchAction::OpenFolder {
+                    target: name.clone(),
+                });
+            }
+        }
+        for (name, entry) in &self.apps {
+            if entry.dispatch_key() == Some(key) {
+                return Some(DispatchAction::SwitchApp {
+                    target: name.clone(),
+                });
+            }
+        }
+        None
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -129,11 +236,11 @@ pub fn default_config() -> Config {
     }
 }
 
-fn default_search_engines() -> IndexMap<String, String> {
+fn default_search_engines() -> IndexMap<String, SearchEntry> {
     let mut m = IndexMap::new();
     m.insert(
         "google".to_string(),
-        "https://www.google.com/search?q={query}".to_string(),
+        SearchEntry::Simple("https://www.google.com/search?q={query}".to_string()),
     );
     m
 }
@@ -164,8 +271,20 @@ pub fn save(path: &std::path::Path, config: &Config) -> Result<()> {
         .as_table_mut()
         .context("search section is not a table")?;
     search_table.clear();
-    for (key, value) in &config.search {
-        search_table[key] = toml_edit::value(value);
+    for (name, entry) in &config.search {
+        match entry {
+            SearchEntry::Simple(url) => {
+                search_table[name] = toml_edit::value(url);
+            }
+            SearchEntry::Detailed { key, url } => {
+                let mut inline = InlineTable::new();
+                if let Some(dk) = key {
+                    inline.insert("key", Value::from(dk.as_str()));
+                }
+                inline.insert("url", Value::from(url.as_str()));
+                search_table[name] = toml_edit::value(inline);
+            }
+        }
     }
 
     // [folders] セクション
@@ -175,8 +294,20 @@ pub fn save(path: &std::path::Path, config: &Config) -> Result<()> {
         .as_table_mut()
         .context("folders section is not a table")?;
     folders_table.clear();
-    for (key, value) in &config.folders {
-        folders_table[key] = toml_edit::value(value);
+    for (name, entry) in &config.folders {
+        match entry {
+            FolderEntry::Simple(path) => {
+                folders_table[name] = toml_edit::value(path);
+            }
+            FolderEntry::Detailed { key, path } => {
+                let mut inline = InlineTable::new();
+                if let Some(dk) = key {
+                    inline.insert("key", Value::from(dk.as_str()));
+                }
+                inline.insert("path", Value::from(path.as_str()));
+                folders_table[name] = toml_edit::value(inline);
+            }
+        }
     }
 
     // [apps] セクション
@@ -186,18 +317,25 @@ pub fn save(path: &std::path::Path, config: &Config) -> Result<()> {
         .as_table_mut()
         .context("apps section is not a table")?;
     apps_table.clear();
-    for (key, entry) in &config.apps {
+    for (name, entry) in &config.apps {
         match entry {
-            AppEntry::Simple(name) => {
-                apps_table[key] = toml_edit::value(name);
+            AppEntry::Simple(process_name) => {
+                apps_table[name] = toml_edit::value(process_name);
             }
-            AppEntry::Detailed { process, command } => {
+            AppEntry::Detailed {
+                key,
+                process,
+                command,
+            } => {
                 let mut inline = InlineTable::new();
+                if let Some(dk) = key {
+                    inline.insert("key", Value::from(dk.as_str()));
+                }
                 inline.insert("process", Value::from(process.as_str()));
                 if let Some(cmd) = command {
                     inline.insert("command", Value::from(cmd.as_str()));
                 }
-                apps_table[key] = toml_edit::value(inline);
+                apps_table[name] = toml_edit::value(inline);
             }
         }
     }
@@ -237,25 +375,82 @@ pub fn validate(config: &Config) -> Vec<String> {
     }
 
     // search URL テンプレートの検証
-    for (key, url) in &config.search {
-        if !url.contains("{query}") {
+    for (name, entry) in &config.search {
+        if !entry.url().contains("{query}") {
             errors.push(format!(
                 "Search engine '{}' URL must contain {{query}} placeholder",
-                key
+                name
             ));
+        }
+    }
+
+    // ディスパッチキーの重複チェック
+    let mut used_keys: IndexMap<String, String> = IndexMap::new();
+    for (name, entry) in &config.search {
+        if let Some(k) = entry.dispatch_key() {
+            let label = format!("search/{}", name);
+            if let Some(prev) = used_keys.get(k) {
+                errors.push(format!(
+                    "Dispatch key '{}' is used by both '{}' and '{}'",
+                    k, prev, label
+                ));
+            } else {
+                used_keys.insert(k.to_string(), label);
+            }
+        }
+    }
+    for (name, entry) in &config.folders {
+        if let Some(k) = entry.dispatch_key() {
+            let label = format!("folders/{}", name);
+            if let Some(prev) = used_keys.get(k) {
+                errors.push(format!(
+                    "Dispatch key '{}' is used by both '{}' and '{}'",
+                    k, prev, label
+                ));
+            } else {
+                used_keys.insert(k.to_string(), label);
+            }
+        }
+    }
+    for (name, entry) in &config.apps {
+        if let Some(k) = entry.dispatch_key() {
+            let label = format!("apps/{}", name);
+            if let Some(prev) = used_keys.get(k) {
+                errors.push(format!(
+                    "Dispatch key '{}' is used by both '{}' and '{}'",
+                    k, prev, label
+                ));
+            } else {
+                used_keys.insert(k.to_string(), label);
+            }
         }
     }
 
     errors
 }
 
-// ── Helper ──
+// ── Helpers ──
 
-/// 設定から指定キーの値を取得するヘルパー
-pub fn get_value<'a>(map: &'a IndexMap<String, String>, key: &str, label: &str) -> Result<&'a str> {
-    map.get(key)
-        .map(|s| s.as_str())
-        .ok_or_else(|| anyhow::anyhow!("{} '{}' is not defined in config.toml", label, key))
+/// 検索エンジンの URL テンプレートを取得する。
+pub fn get_search_url<'a>(
+    search: &'a IndexMap<String, SearchEntry>,
+    engine: &str,
+) -> Result<&'a str> {
+    search
+        .get(engine)
+        .map(|e| e.url())
+        .ok_or_else(|| anyhow::anyhow!("Search engine '{}' is not defined in config.toml", engine))
+}
+
+/// フォルダのパスを取得する。
+pub fn get_folder_path<'a>(
+    folders: &'a IndexMap<String, FolderEntry>,
+    target: &str,
+) -> Result<&'a str> {
+    folders
+        .get(target)
+        .map(|e| e.path())
+        .ok_or_else(|| anyhow::anyhow!("Folder '{}' is not defined in config.toml", target))
 }
 
 #[cfg(test)]
@@ -292,5 +487,91 @@ mod tests {
         let toml_str = toml::to_string(&config).unwrap();
         let loaded: Config = toml::from_str(&toml_str).unwrap();
         assert_eq!(loaded.timestamp.format, config.timestamp.format);
+    }
+
+    #[test]
+    fn test_parse_old_format() {
+        let toml_str = r#"
+            [search]
+            google = "https://www.google.com/search?q={query}"
+
+            [folders]
+            documents = "~/Documents"
+
+            [apps]
+            editor = {process = "Code", command = "code"}
+        "#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.search["google"].url(), "https://www.google.com/search?q={query}");
+        assert!(config.search["google"].dispatch_key().is_none());
+        assert_eq!(config.folders["documents"].path(), "~/Documents");
+        assert!(config.folders["documents"].dispatch_key().is_none());
+        assert_eq!(config.apps["editor"].process(), "Code");
+        assert!(config.apps["editor"].dispatch_key().is_none());
+    }
+
+    #[test]
+    fn test_parse_new_format_with_keys() {
+        let toml_str = r#"
+            [search]
+            google = {key = "g", url = "https://www.google.com/search?q={query}"}
+
+            [folders]
+            documents = {key = "1", path = "~/Documents"}
+
+            [apps]
+            editor = {key = "a", process = "Code", command = "code"}
+        "#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.search["google"].url(), "https://www.google.com/search?q={query}");
+        assert_eq!(config.search["google"].dispatch_key(), Some("g"));
+        assert_eq!(config.folders["documents"].path(), "~/Documents");
+        assert_eq!(config.folders["documents"].dispatch_key(), Some("1"));
+        assert_eq!(config.apps["editor"].process(), "Code");
+        assert_eq!(config.apps["editor"].dispatch_key(), Some("a"));
+    }
+
+    #[test]
+    fn test_dispatch_lookup() {
+        let toml_str = r#"
+            [search]
+            google = {key = "g", url = "https://www.google.com/search?q={query}"}
+
+            [folders]
+            documents = {key = "1", path = "~/Documents"}
+
+            [apps]
+            editor = {key = "a", process = "Code", command = "code"}
+        "#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+
+        match config.dispatch_lookup("g") {
+            Some(DispatchAction::Search { engine }) => assert_eq!(engine, "google"),
+            other => panic!("Expected Search, got {:?}", other),
+        }
+        match config.dispatch_lookup("1") {
+            Some(DispatchAction::OpenFolder { target }) => assert_eq!(target, "documents"),
+            other => panic!("Expected OpenFolder, got {:?}", other),
+        }
+        match config.dispatch_lookup("a") {
+            Some(DispatchAction::SwitchApp { target }) => assert_eq!(target, "editor"),
+            other => panic!("Expected SwitchApp, got {:?}", other),
+        }
+        assert!(config.dispatch_lookup("z").is_none());
+    }
+
+    #[test]
+    fn test_validate_duplicate_keys() {
+        let toml_str = r#"
+            [search]
+            google = {key = "a", url = "https://www.google.com/search?q={query}"}
+
+            [apps]
+            editor = {key = "a", process = "Code", command = "code"}
+        "#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        let errors = validate(&config);
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("Dispatch key 'a'"));
     }
 }

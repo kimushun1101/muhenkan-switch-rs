@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use shared_child::SharedChild;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -168,61 +167,6 @@ impl KanataManager {
             None => (false, None),
         }
     }
-}
-
-/// kbd ファイルからキーバインド情報を抽出する。
-///
-/// 戻り値: `{ "apps": { "editor": "A", ... }, "search": { ... }, "folders": { ... } }`
-pub fn parse_key_bindings() -> Result<HashMap<String, HashMap<String, String>>> {
-    let kbd = KanataManager::kbd_path()?;
-    let content = std::fs::read_to_string(&kbd)
-        .with_context(|| format!("kbd ファイルの読み込みに失敗: {}", kbd.display()))?;
-
-    let mut apps = HashMap::new();
-    let mut search = HashMap::new();
-    let mut folders = HashMap::new();
-
-    // パターン: app-{key} (cmd muhenkan-switch switch-app --target {name})
-    //           srch-{key} (cmd muhenkan-switch search --engine {name})
-    //           fld-{key} (cmd muhenkan-switch open-folder --target {name})
-    for line in content.lines() {
-        let line = line.trim();
-        if let Some(rest) = line.strip_prefix("app-") {
-            if let Some((key, name)) = parse_alias_line(rest, "switch-app --target") {
-                apps.insert(name, key.to_uppercase());
-            }
-        } else if let Some(rest) = line.strip_prefix("srch-") {
-            if let Some((key, name)) = parse_alias_line(rest, "search --engine") {
-                search.insert(name, key.to_uppercase());
-            }
-        } else if let Some(rest) = line.strip_prefix("fld-") {
-            if let Some((key, name)) = parse_alias_line(rest, "open-folder --target") {
-                folders.insert(name, key.to_uppercase());
-            }
-        }
-    }
-
-    let mut result = HashMap::new();
-    result.insert("apps".to_string(), apps);
-    result.insert("search".to_string(), search);
-    result.insert("folders".to_string(), folders);
-    Ok(result)
-}
-
-/// エイリアス行からキーとターゲット名を抽出する。
-/// 入力例: `a (cmd muhenkan-switch switch-app --target editor)`
-/// 戻り値: `Some(("a", "editor"))`
-fn parse_alias_line(rest: &str, command: &str) -> Option<(String, String)> {
-    // rest = "a (cmd muhenkan-switch switch-app --target editor)"
-    let key = rest.split_whitespace().next()?;
-    let target = rest.split(command).nth(1)?
-        .trim()
-        .trim_end_matches(')')
-        .trim();
-    if target.is_empty() {
-        return None;
-    }
-    Some((key.to_string(), target.to_string()))
 }
 
 /// アプリ起動時のセットアップ（kanata 自動開始 + 状態監視スレッド起動）

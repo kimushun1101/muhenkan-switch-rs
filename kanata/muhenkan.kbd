@@ -3,6 +3,9 @@
 ;;
 ;; 無変換キーを押しながら他のキーを押すことでショートカットが発動します。
 ;; 無変換キー単体は無変換キーとして動作します。
+;;
+;; 検索・フォルダ・アプリのキー割り当ては config.toml で管理されています。
+;; kbd ファイルは汎用ディスパッチのみを定義します。
 
 (defcfg
   process-unmapped-keys yes
@@ -12,11 +15,11 @@
 ;; ── ソースキー定義 ──
 (defsrc
   muhenkan
-  ;; 数字キー（フォルダ）
+  ;; 数字キー（ディスパッチ）
   1  2  3  4  5
-  ;; 左手上段（検索系）
+  ;; 左手上段（ディスパッチ）
   q  r  t  g
-  ;; 左手中段（アプリ切り替え）
+  ;; 左手中段（ディスパッチ）
   a  w  e  s  d  f
   ;; 左手下段（ファイル操作）
   v  c  x
@@ -35,38 +38,32 @@
   ;; 無変換キー: tap = 無変換 / hold = レイヤー切り替え
   mh (tap-hold 200 200 muhenkan (layer-while-held mh-layer))
 
-  ;; ── Layer 2: muhenkan-switch 呼び出し ──
-  ;; 検索系（選択文字列を検索）
-  srch-q (cmd muhenkan-switch search --engine ejje)
-  srch-r (cmd muhenkan-switch search --engine thesaurus)
-  srch-t (cmd muhenkan-switch search --engine translate)
-  srch-g (cmd muhenkan-switch search --engine google)
+  ;; ── Layer 2: 汎用ディスパッチ ──
+  ;; config.toml の key フィールドに対応するアクションが実行される
+  dsp-1 (cmd muhenkan-switch dispatch 1)
+  dsp-2 (cmd muhenkan-switch dispatch 2)
+  dsp-3 (cmd muhenkan-switch dispatch 3)
+  dsp-4 (cmd muhenkan-switch dispatch 4)
+  dsp-5 (cmd muhenkan-switch dispatch 5)
+  dsp-q (cmd muhenkan-switch dispatch q)
+  dsp-r (cmd muhenkan-switch dispatch r)
+  dsp-t (cmd muhenkan-switch dispatch t)
+  dsp-g (cmd muhenkan-switch dispatch g)
+  dsp-a (cmd muhenkan-switch dispatch a)
+  dsp-w (cmd muhenkan-switch dispatch w)
+  dsp-e (cmd muhenkan-switch dispatch e)
+  dsp-s (cmd muhenkan-switch dispatch s)
+  dsp-d (cmd muhenkan-switch dispatch d)
+  dsp-f (cmd muhenkan-switch dispatch f)
 
-  ;; アプリ切り替え
-  app-a (cmd muhenkan-switch switch-app --target editor)
-  app-w (cmd muhenkan-switch switch-app --target word)
-  app-e (cmd muhenkan-switch switch-app --target email)
-  app-s (cmd muhenkan-switch switch-app --target slides)
-  app-d (cmd muhenkan-switch switch-app --target pdf)
-  app-f (cmd muhenkan-switch switch-app --target browser)
-
-  ;; ファイル操作
+  ;; ── 固定アクション ──
+  ;; タイムスタンプ操作
   ts-v (cmd muhenkan-switch timestamp --action paste)
   ts-c (cmd muhenkan-switch timestamp --action copy)
   ts-x (cmd muhenkan-switch timestamp --action cut)
 
-  ;; フォルダオープン
-  fld-1 (cmd muhenkan-switch open-folder --target documents)
-  fld-2 (cmd muhenkan-switch open-folder --target downloads)
-  fld-3 (cmd muhenkan-switch open-folder --target desktop)
-  fld-4 (cmd muhenkan-switch open-folder --target onedrive)
-  fld-5 (cmd muhenkan-switch open-folder --target trash)
-
   ;; スクリーンショット
   prtsc (cmd muhenkan-switch screenshot)
-
-  ;; 設定画面（将来実装）
-  ;; cfg (cmd muhenkan-switch config-gui)
 )
 
 ;; ── デフォルトレイヤー ──
@@ -87,12 +84,12 @@
 ;; ── 無変換キー押下中レイヤー ──
 (deflayer mh-layer
   _
-  ;; 数字キー → フォルダオープン
-  @fld-1  @fld-2  @fld-3  @fld-4  @fld-5
-  ;; 左手上段 → 検索
-  @srch-q  @srch-r  @srch-t  @srch-g
-  ;; 左手中段 → アプリ切り替え
-  @app-a  @app-w  @app-e  @app-s  @app-d  @app-f
+  ;; 数字キー → ディスパッチ
+  @dsp-1  @dsp-2  @dsp-3  @dsp-4  @dsp-5
+  ;; 左手上段 → ディスパッチ
+  @dsp-q  @dsp-r  @dsp-t  @dsp-g
+  ;; 左手中段 → ディスパッチ
+  @dsp-a  @dsp-w  @dsp-e  @dsp-s  @dsp-d  @dsp-f
   ;; 左手下段 → タイムスタンプ操作
   @ts-v  @ts-c  @ts-x
   ;; 右手 → Vim風カーソル移動

@@ -1,3 +1,4 @@
+pub mod dispatch;
 pub mod open_folder;
 pub mod screenshot;
 pub mod search;
