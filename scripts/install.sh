@@ -51,6 +51,7 @@ copy_file() {
 copy_file "companion" "companion"
 copy_file "config.toml" "config.toml"
 copy_file "muhenkan.kbd" "muhenkan.kbd"
+copy_file "update.sh" "update.sh"
 
 # companion に実行権限を付与
 chmod +x "$INSTALL_DIR/companion" 2>/dev/null || true

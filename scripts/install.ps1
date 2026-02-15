@@ -48,6 +48,7 @@ $filesToCopy = @(
     @{ Src = "companion.exe"; Dest = "companion.exe" }
     @{ Src = "config.toml";   Dest = "config.toml" }
     @{ Src = "muhenkan.kbd";  Dest = "muhenkan.kbd" }
+    @{ Src = "update.ps1";    Dest = "update.ps1" }
 )
 
 foreach ($file in $filesToCopy) {

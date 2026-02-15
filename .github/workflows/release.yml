@@ -66,16 +66,19 @@ jobs:
             windows-x64)
               cp scripts/install.ps1 "$RELEASE_DIR/"
               cp scripts/uninstall.ps1 "$RELEASE_DIR/"
+              cp scripts/update.ps1 "$RELEASE_DIR/"
               ;;
             linux-x64)
               cp scripts/install.sh "$RELEASE_DIR/"
               cp scripts/uninstall.sh "$RELEASE_DIR/"
-              chmod +x "$RELEASE_DIR/install.sh" "$RELEASE_DIR/uninstall.sh"
+              cp scripts/update.sh "$RELEASE_DIR/"
+              chmod +x "$RELEASE_DIR/install.sh" "$RELEASE_DIR/uninstall.sh" "$RELEASE_DIR/update.sh"
               ;;
             macos-x64|macos-arm64)
               cp scripts/install-macos.sh "$RELEASE_DIR/"
               cp scripts/uninstall-macos.sh "$RELEASE_DIR/"
-              chmod +x "$RELEASE_DIR/install-macos.sh" "$RELEASE_DIR/uninstall-macos.sh"
+              cp scripts/update-macos.sh "$RELEASE_DIR/"
+              chmod +x "$RELEASE_DIR/install-macos.sh" "$RELEASE_DIR/uninstall-macos.sh" "$RELEASE_DIR/update-macos.sh"
               ;;
           esac
 
