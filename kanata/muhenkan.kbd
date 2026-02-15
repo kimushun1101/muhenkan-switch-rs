@@ -35,38 +35,38 @@
   ;; 無変換キー: tap = 無変換 / hold = レイヤー切り替え
   mh (tap-hold 200 200 muhenkan (layer-while-held mh-layer))
 
-  ;; ── Layer 2: companion 呼び出し ──
+  ;; ── Layer 2: muhenkan-switch 呼び出し ──
   ;; 検索系（選択文字列を検索）
-  srch-q (cmd companion search --engine ejje)
-  srch-r (cmd companion search --engine thesaurus)
-  srch-t (cmd companion search --engine translate)
-  srch-g (cmd companion search --engine google)
+  srch-q (cmd muhenkan-switch search --engine ejje)
+  srch-r (cmd muhenkan-switch search --engine thesaurus)
+  srch-t (cmd muhenkan-switch search --engine translate)
+  srch-g (cmd muhenkan-switch search --engine google)
 
   ;; アプリ切り替え
-  app-a (cmd companion switch-app --target editor)
-  app-w (cmd companion switch-app --target word)
-  app-e (cmd companion switch-app --target email)
-  app-s (cmd companion switch-app --target slides)
-  app-d (cmd companion switch-app --target pdf)
-  app-f (cmd companion switch-app --target browser)
+  app-a (cmd muhenkan-switch switch-app --target editor)
+  app-w (cmd muhenkan-switch switch-app --target word)
+  app-e (cmd muhenkan-switch switch-app --target email)
+  app-s (cmd muhenkan-switch switch-app --target slides)
+  app-d (cmd muhenkan-switch switch-app --target pdf)
+  app-f (cmd muhenkan-switch switch-app --target browser)
 
   ;; ファイル操作
-  ts-v (cmd companion timestamp --action paste)
-  ts-c (cmd companion timestamp --action copy)
-  ts-x (cmd companion timestamp --action cut)
+  ts-v (cmd muhenkan-switch timestamp --action paste)
+  ts-c (cmd muhenkan-switch timestamp --action copy)
+  ts-x (cmd muhenkan-switch timestamp --action cut)
 
   ;; フォルダオープン
-  fld-1 (cmd companion open-folder --target documents)
-  fld-2 (cmd companion open-folder --target downloads)
-  fld-3 (cmd companion open-folder --target desktop)
-  fld-4 (cmd companion open-folder --target onedrive)
-  fld-5 (cmd companion open-folder --target trash)
+  fld-1 (cmd muhenkan-switch open-folder --target documents)
+  fld-2 (cmd muhenkan-switch open-folder --target downloads)
+  fld-3 (cmd muhenkan-switch open-folder --target desktop)
+  fld-4 (cmd muhenkan-switch open-folder --target onedrive)
+  fld-5 (cmd muhenkan-switch open-folder --target trash)
 
   ;; スクリーンショット
-  prtsc (cmd companion screenshot)
+  prtsc (cmd muhenkan-switch screenshot)
 
   ;; 設定画面（将来実装）
-  ;; cfg (cmd companion config-gui)
+  ;; cfg (cmd muhenkan-switch config-gui)
 )
 
 ;; ── デフォルトレイヤー ──

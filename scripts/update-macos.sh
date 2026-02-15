@@ -45,11 +45,11 @@ fi
 
 # ── 現在のバージョンを取得 ──
 current_version="(不明)"
-if command -v companion &>/dev/null; then
-    version_output=$(companion --version 2>/dev/null || true)
+if command -v muhenkan-switch &>/dev/null; then
+    version_output=$(muhenkan-switch --version 2>/dev/null || true)
     if [ -n "$version_output" ]; then
-        # "companion x.y.z" → "vx.y.z"
-        version_string=$(echo "$version_output" | sed 's/^companion *//')
+        # "muhenkan-switch x.y.z" → "vx.y.z"
+        version_string=$(echo "$version_output" | sed 's/^muhenkan-switch *//')
         current_version="v$version_string"
     fi
 fi

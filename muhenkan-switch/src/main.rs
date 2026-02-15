@@ -6,8 +6,8 @@ mod config;
 
 #[derive(Parser)]
 #[command(
-    name = "companion",
-    about = "muhenkan-switch companion tool",
+    name = "muhenkan-switch",
+    about = "muhenkan-switch key action tool",
     version
 )]
 struct Cli {

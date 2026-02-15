@@ -3,7 +3,7 @@
 .SYNOPSIS
     muhenkan-switch-rs インストールスクリプト (Windows)
 .DESCRIPTION
-    companion.exe, config.toml, muhenkan.kbd をインストールし、
+    muhenkan-switch.exe, config.toml, muhenkan.kbd をインストールし、
     kanata を GitHub からダウンロードします。
 .NOTES
     管理者権限は不要です。
@@ -45,7 +45,7 @@ if (Test-Path $configDest) {
 
 # ── ファイルコピー ──
 $filesToCopy = @(
-    @{ Src = "companion.exe"; Dest = "companion.exe" }
+    @{ Src = "muhenkan-switch.exe"; Dest = "muhenkan-switch.exe" }
     @{ Src = "config.toml";   Dest = "config.toml" }
     @{ Src = "muhenkan.kbd";  Dest = "muhenkan.kbd" }
     @{ Src = "update.ps1";    Dest = "update.ps1" }

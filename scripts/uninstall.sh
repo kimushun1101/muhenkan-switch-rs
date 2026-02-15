@@ -19,7 +19,7 @@ fi
 
 echo "以下を削除します:"
 echo "  - インストールディレクトリ: $INSTALL_DIR"
-echo "  - シンボリックリンク: $BIN_DIR/companion, $BIN_DIR/kanata_cmd_allowed"
+echo "  - シンボリックリンク: $BIN_DIR/muhenkan-switch, $BIN_DIR/kanata_cmd_allowed"
 if [ -f "$SERVICE_FILE" ]; then
     echo "  - systemd サービス: kanata.service"
 fi
@@ -62,7 +62,7 @@ remove_symlink() {
     fi
 }
 
-remove_symlink "companion"
+remove_symlink "muhenkan-switch"
 remove_symlink "kanata_cmd_allowed"
 
 # ── インストールディレクトリ削除 ──

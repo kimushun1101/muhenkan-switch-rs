@@ -3,7 +3,7 @@
 無変換キーと同時押しを起点としたクロスプラットフォーム・ショートカットツール。
 
 [muhenkan-switch](https://github.com/kimushun1101/muhenkan-switch)（AutoHotkey版）を
-[kanata](https://github.com/jtroo/kanata) + Rust製companionバイナリ で再実装したものです。
+[kanata](https://github.com/jtroo/kanata) + Rust製バイナリ で再実装したものです。
 
 ## 対応環境
 
@@ -63,9 +63,9 @@
 ```
 <install_dir>/
 ├── kanata_cmd_allowed(.exe)   # kanata 本体（自動ダウンロード）
-├── companion(.exe)            # companion ツール
+├── muhenkan-switch(.exe)       # muhenkan-switch ツール
 ├── muhenkan.kbd               # kanata 設定ファイル (macOS: muhenkan-macos.kbd)
-└── config.toml                # companion 設定ファイル
+└── config.toml                # muhenkan-switch 設定ファイル
 ```
 
 ### 2. ターミナルを再起動
@@ -156,7 +156,7 @@ macOS では [Karabiner-VirtualHIDDevice](https://github.com/pqrs-org/Karabiner-
 `muhenkan.kbd` を編集してください。
 kanata の設定ガイドは [こちら](https://github.com/jtroo/kanata/wiki/Configuration-guide)。
 
-### companion の設定変更
+### muhenkan-switch の設定変更
 
 `config.toml` で検索エンジンのURL、アプリ名、フォルダパス等を変更できます。
 
@@ -167,7 +167,7 @@ kanata の設定ガイドは [こちら](https://github.com/jtroo/kanata/wiki/Co
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # ビルド
-cd companion
+cd muhenkan-switch
 cargo build --release
 ```
 

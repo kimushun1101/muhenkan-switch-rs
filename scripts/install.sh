@@ -3,7 +3,7 @@ set -euo pipefail
 
 # muhenkan-switch-rs インストールスクリプト (Linux)
 #
-# companion, config.toml, muhenkan.kbd をインストールし、
+# muhenkan-switch, config.toml, muhenkan.kbd をインストールし、
 # kanata を GitHub からダウンロードします。
 # root 権限は不要です。
 
@@ -48,13 +48,13 @@ copy_file() {
     fi
 }
 
-copy_file "companion" "companion"
+copy_file "muhenkan-switch" "muhenkan-switch"
 copy_file "config.toml" "config.toml"
 copy_file "muhenkan.kbd" "muhenkan.kbd"
 copy_file "update.sh" "update.sh"
 
-# companion に実行権限を付与
-chmod +x "$INSTALL_DIR/companion" 2>/dev/null || true
+# muhenkan-switch に実行権限を付与
+chmod +x "$INSTALL_DIR/muhenkan-switch" 2>/dev/null || true
 
 # ── kanata ダウンロード ──
 kanata_dest="$INSTALL_DIR/kanata_cmd_allowed"
@@ -120,7 +120,7 @@ create_symlink() {
     fi
 }
 
-create_symlink "$INSTALL_DIR/companion" "companion"
+create_symlink "$INSTALL_DIR/muhenkan-switch" "muhenkan-switch"
 create_symlink "$INSTALL_DIR/kanata_cmd_allowed" "kanata_cmd_allowed"
 
 # ── PATH チェック ──

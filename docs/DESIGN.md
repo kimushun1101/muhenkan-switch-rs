@@ -7,14 +7,14 @@ tags:
   - cross-platform
   - kanata
   - rust
-summary: muhenkan-switchをkanata＋Rust製companionバイナリ構成でWindows/macOS/Linuxに対応させる設計書。JIS配列前提、macOS未検証。
+summary: muhenkan-switchをkanata＋Rust製muhenkan-switchバイナリ構成でWindows/macOS/Linuxに対応させる設計書。JIS配列前提、macOS未検証。
 ---
 
 ## 概要
 
 現行の `muhenkan-switch`（AutoHotkey v2、Windows専用）をマルチプラットフォーム化する。
 
-**アーキテクチャ:** kanata（既存OSSキーリマッパー）＋ Rust製 companion バイナリ
+**アーキテクチャ:** kanata（既存OSSキーリマッパー）＋ Rust製 muhenkan-switch バイナリ
 
 **前提条件:**
 - 対象OS: Windows / macOS / Linux
@@ -24,8 +24,8 @@ summary: muhenkan-switchをkanata＋Rust製companionバイナリ構成でWindows
 
 **設計方針:**
 - kanata を外部バイナリとして利用（クレート組み込みはしない）
-- kanata と companion は `cmd` アクション（プロセス起動）で疎結合に接続
-- companion は非同期なし・unsafe なし・ライフタイム注釈なしのシンプルな Rust コード
+- kanata と muhenkan-switch は `cmd` アクション（プロセス起動）で疎結合に接続
+- muhenkan-switch は非同期なし・unsafe なし・ライフタイム注釈なしのシンプルな Rust コード
 
 ---
 
@@ -42,7 +42,7 @@ summary: muhenkan-switchをkanata＋Rust製companionバイナリ構成でWindows
 | NM → BackSpace/Delete | レイヤー内で `bspc` `del` |
 | カンマ・ピリオド → 句読点 | unicode 出力 |
 
-### Layer 2: OS連携 → companion バイナリ（Rust）
+### Layer 2: OS連携 → muhenkan-switch バイナリ（Rust）
 
 | 機能 | 実装方針 |
 |------|----------|
@@ -52,7 +52,7 @@ summary: muhenkan-switchをkanata＋Rust製companionバイナリ構成でWindows
 | タイムスタンプ | `chrono` → `arboard`（クリップボード書き込み） |
 | スクリーンショット | OS別コマンド呼び出し |
 
-### Layer 3: 設定管理 → companion が config.toml を読み込み
+### Layer 3: 設定管理 → muhenkan-switch が config.toml を読み込み
 
 - `toml` + `serde` で設定ファイルを構造体にデシリアライズ
 - 検索URL、アプリ名、フォルダパス、タイムスタンプ形式を設定可能
@@ -66,14 +66,14 @@ summary: muhenkan-switchをkanata＋Rust製companionバイナリ構成でWindows
 │            muhenkan-switch-rs            │
 │                                          │
 │  ┌──────────┐      ┌──────────────────┐ │
-│  │  kanata  │─cmd─→│    companion     │ │
+│  │  kanata  │─cmd─→│  muhenkan-switch │ │
 │  │  (.kbd)  │      │  (Rust binary)   │ │
 │  └──────────┘      └──────────────────┘ │
 │   Layer 1            Layer 2 + 3        │
 │   キー入力           OS連携 + 設定管理  │
 │                                          │
 │  ┌──────────┐                            │
-│  │ config   │← companion が読み込み     │
+│  │ config   │← muhenkan-switch が読み込み│
 │  │ (.toml)  │                            │
 │  └──────────┘                            │
 └──────────────────────────────────────────┘
@@ -91,10 +91,10 @@ summary: muhenkan-switchをkanata＋Rust製companionバイナリ構成でWindows
 
 ---
 
-## companion CLI 仕様
+## muhenkan-switch CLI 仕様
 
 ```
-companion <COMMAND> [OPTIONS]
+muhenkan-switch <COMMAND> [OPTIONS]
 
 Commands:
   search       --engine <NAME>    選択テキスト（クリップボード）をWeb検索
@@ -127,7 +127,7 @@ Commands:
 
 - GitHub Actions で Windows (x64) / Linux (x64) / macOS (x64, aarch64) のバイナリを自動ビルド
 - タグ push (`v*`) でリリース作成
-- リリース zip には companion バイナリ + .kbd + config.toml を同梱
+- リリース zip には muhenkan-switch バイナリ + .kbd + config.toml を同梱
 - kanata 本体は同梱またはダウンロードリンクを案内
 
 ---
@@ -138,7 +138,7 @@ Commands:
 - `muhenkan.kbd` で無変換 + HJKL カーソル移動を実装
 - Windows / Linux で動作確認
 
-### Phase 2: companion 最小実装（2-3週間）
+### Phase 2: muhenkan-switch 最小実装（2-3週間）
 - 実装順序: open-folder → search → timestamp → switch-app
 - kanata の `cmd` アクションとの結合テスト
 

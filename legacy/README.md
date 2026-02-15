@@ -10,7 +10,7 @@
 |------|-------------|---------------------|
 | OS対応 | Windows のみ | Windows / Linux / macOS(未検証) |
 | キーリマップ | AutoHotkey v2 | kanata (.kbd ファイル) |
-| 補助機能 | AHK スクリプト | Rust製 companion バイナリ |
+| 補助機能 | AHK スクリプト | Rust製 muhenkan-switch バイナリ |
 | 設定 | GUI + AHK 設定ファイル | config.toml (テキスト編集) |
 | 配布形式 | AHK スクリプト or exe | ネイティブバイナリ |
 | ランタイム | AutoHotkey | なし（スタンドアロン） |
@@ -20,12 +20,12 @@
 | 機能 | 旧版 | 新版 | 備考 |
 |------|------|------|------|
 | Vim風カーソル移動 | ✅ | ✅ | kanata レイヤーで実現 |
-| アプリ切り替え | ✅ | ✅ | companion switch-app |
-| Web検索 | ✅ | ✅ | companion search |
-| フォルダオープン | ✅ | ✅ | companion open-folder |
-| タイムスタンプ | ✅ | ✅ | companion timestamp |
+| アプリ切り替え | ✅ | ✅ | muhenkan-switch switch-app |
+| Web検索 | ✅ | ✅ | muhenkan-switch search |
+| フォルダオープン | ✅ | ✅ | muhenkan-switch open-folder |
+| タイムスタンプ | ✅ | ✅ | muhenkan-switch timestamp |
 | 句読点入力 | ✅ | ✅ | kanata unicode |
-| スクリーンショット | ✅ | ✅ | companion screenshot |
+| スクリーンショット | ✅ | ✅ | muhenkan-switch screenshot |
 | ホットストリング | ✅ | ⬜ | Phase 4 で対応予定 |
 | GUI設定画面 | ✅ | ⬜ | Phase 4 で対応予定 |
 | 自動更新 | ✅ | ⬜ | Phase 4 で対応予定 |

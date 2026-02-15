@@ -14,19 +14,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: companion
+            artifact_name: muhenkan-switch
             asset_suffix: linux-x64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: companion.exe
+            artifact_name: muhenkan-switch.exe
             asset_suffix: windows-x64
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: companion
+            artifact_name: muhenkan-switch
             asset_suffix: macos-x64
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: companion
+            artifact_name: muhenkan-switch
             asset_suffix: macos-arm64
 
     runs-on: ${{ matrix.os }}
@@ -38,7 +38,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Build companion
+      - name: Build muhenkan-switch
         working-directory: companion
         run: cargo build --release --target ${{ matrix.target }}
 
@@ -48,8 +48,8 @@ jobs:
           RELEASE_DIR="muhenkan-switch-rs-${{ matrix.asset_suffix }}"
           mkdir -p "$RELEASE_DIR"
 
-          # companion バイナリ
-          cp "companion/target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "$RELEASE_DIR/"
+          # muhenkan-switch バイナリ
+          cp "muhenkan-switch/target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "$RELEASE_DIR/"
 
           # 設定ファイル
           cp config/default.toml "$RELEASE_DIR/config.toml"

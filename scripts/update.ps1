@@ -37,14 +37,14 @@ try {
 # ── 現在のバージョンを取得 ──
 $currentVersion = "(不明)"
 try {
-    $companionOutput = & companion --version 2>&1
-    if ($LASTEXITCODE -eq 0 -and $companionOutput) {
-        # "companion x.y.z" → "vx.y.z"
-        $versionString = ($companionOutput -replace "^companion\s+", "").Trim()
+    $versionOutput = & muhenkan-switch --version 2>&1
+    if ($LASTEXITCODE -eq 0 -and $versionOutput) {
+        # "muhenkan-switch x.y.z" → "vx.y.z"
+        $versionString = ($versionOutput -replace "^muhenkan-switch\s+", "").Trim()
         $currentVersion = "v$versionString"
     }
 } catch {
-    # companion が PATH にない場合は無視
+    # muhenkan-switch が PATH にない場合は無視
 }
 
 # ── バージョン表示 ──

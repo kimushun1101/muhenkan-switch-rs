@@ -1,5 +1,5 @@
 # Rust build artifacts
-/companion/target/
+/muhenkan-switch/target/
 **/*.rs.bk
 
 # IDE

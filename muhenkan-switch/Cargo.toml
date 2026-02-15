@@ -1,5 +1,5 @@
 [package]
-name = "muhenkan-companion"
+name = "muhenkan-switch"
 version = "2.1.0"
 edition = "2021"
 description = "Companion tool for muhenkan-switch-rs: cross-platform shortcut actions"
@@ -7,7 +7,7 @@ license = "GPL-2.0-only"
 repository = "https://github.com/kimushun1101/muhenkan-switch-rs"
 
 [[bin]]
-name = "companion"
+name = "muhenkan-switch"
 path = "src/main.rs"
 
 [dependencies]

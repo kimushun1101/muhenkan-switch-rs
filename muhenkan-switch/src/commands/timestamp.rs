@@ -29,7 +29,7 @@ pub fn run(action: &str, config: &Config) -> Result<()> {
         }
         "cut" => {
             // タイムスタンプをクリップボードにコピー（cut と paste は
-            // companion 側では同じ動作。切り取りは kanata 側で Ctrl+X を先に送る）
+            // muhenkan-switch 側では同じ動作。切り取りは kanata 側で Ctrl+X を先に送る）
             clipboard.set_text(&timestamp)?;
         }
         _ => {

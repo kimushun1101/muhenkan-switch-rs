@@ -11,7 +11,7 @@
 
 [kanata リリースページ](https://github.com/jtroo/kanata/releases) から **`kanata_cmd_allowed`** 版をダウンロードしてください。
 
-`cmd` アクション（companion バイナリの呼び出し）を使用するため、通常版（`kanata`）ではなく `cmd_allowed` 版が必要です。
+`cmd` アクション（muhenkan-switch バイナリの呼び出し）を使用するため、通常版（`kanata`）ではなく `cmd_allowed` 版が必要です。
 
 ## 起動方法
 
