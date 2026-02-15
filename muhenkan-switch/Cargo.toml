@@ -11,12 +11,11 @@ name = "muhenkan-switch"
 path = "src/main.rs"
 
 [dependencies]
+muhenkan-switch-config = { path = "../muhenkan-switch-config" }
 clap = { version = "4", features = ["derive"] }
 arboard = { version = "3", features = ["wayland-data-control"] }
 webbrowser = "1"
 open = "5"
-toml = "0.8"
-serde = { version = "1", features = ["derive"] }
 chrono = "0.4"
 urlencoding = "2"
 anyhow = "1"

@@ -4,28 +4,37 @@
 #   mise run build       debug ビルド → ルートにコピー
 #   mise run release     release ビルド → ルートにコピー
 #   mise run dev         ビルド後、kanata も起動
+#   mise run gui         ビルド後、GUI を起動
 
 [tools]
 rust = "1.93"
 
 [tasks.build]
-description = "Build muhenkan-switch (debug)"
+description = "Build workspace (debug)"
 shell = "bash -c"
 run = """
-cargo build --manifest-path muhenkan-switch/Cargo.toml
+cargo build --workspace
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
-cp "muhenkan-switch/target/debug/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
+cp "target/debug/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
 echo "[dev] Copied -> ./muhenkan-switch${EXT}"
+if [ -f "target/debug/muhenkan-switch-gui${EXT}" ]; then
+  cp "target/debug/muhenkan-switch-gui${EXT}" "./muhenkan-switch-gui${EXT}"
+  echo "[dev] Copied -> ./muhenkan-switch-gui${EXT}"
+fi
 """
 
 [tasks.release]
-description = "Build muhenkan-switch (release)"
+description = "Build workspace (release)"
 shell = "bash -c"
 run = """
-cargo build --release --manifest-path muhenkan-switch/Cargo.toml
+cargo build --workspace --release
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
-cp "muhenkan-switch/target/release/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
+cp "target/release/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
 echo "[dev] Copied -> ./muhenkan-switch${EXT}"
+if [ -f "target/release/muhenkan-switch-gui${EXT}" ]; then
+  cp "target/release/muhenkan-switch-gui${EXT}" "./muhenkan-switch-gui${EXT}"
+  echo "[dev] Copied -> ./muhenkan-switch-gui${EXT}"
+fi
 """
 
 [tasks.dev]
@@ -44,4 +53,12 @@ fi
 echo "[dev] Starting kanata..."
 echo "[dev] Ctrl+C で終了"
 "$KANATA" --cfg "$KBD"
+"""
+
+[tasks.gui]
+description = "Build and start GUI"
+shell = "bash -c"
+run = """
+echo "[dev] Starting GUI..."
+cargo run -p muhenkan-switch-gui
 """

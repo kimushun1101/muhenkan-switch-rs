@@ -1,0 +1,12 @@
+[package]
+name = "muhenkan-switch-config"
+version = "0.1.0"
+edition = "2021"
+description = "Shared configuration library for muhenkan-switch"
+license = "GPL-2.0-only"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+toml_edit = "0.22"
+anyhow = "1"

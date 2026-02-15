@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = [
+    "muhenkan-switch",
+    "muhenkan-switch-config",
+    "muhenkan-switch-gui",
+]
