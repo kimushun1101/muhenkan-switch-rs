@@ -44,26 +44,27 @@ jobs:
             exit 0
           fi
 
+          {
+            echo "## kanata アップデート検知"
+            echo ""
+            echo "| | バージョン |"
+            echo "|---|---|"
+            echo "| 現在 | \`$CURRENT\` |"
+            echo "| 最新 | \`$LATEST\` |"
+            echo ""
+            echo "### リリースノート"
+            echo "https://github.com/jtroo/kanata/releases/tag/$LATEST"
+            echo ""
+            echo "### 対応手順"
+            echo "1. リリースノートで破壊的変更がないか確認"
+            echo "2. 以下のファイルの \`KANATA_VERSION\` を \`$LATEST\` に更新"
+            echo "   - \`scripts/install.ps1\`"
+            echo "   - \`scripts/install.sh\`"
+            echo "   - \`scripts/install-macos.sh\`"
+            echo "3. 動作確認後リリース"
+          } > /tmp/issue-body.md
+
           gh issue create \
             --title "kanata $LATEST がリリースされました" \
-            --body "$(cat <<EOF
-## kanata アップデート検知
-
-| | バージョン |
-|---|---|
-| 現在 | \`$CURRENT\` |
-| 最新 | \`$LATEST\` |
-
-### リリースノート
-https://github.com/jtroo/kanata/releases/tag/$LATEST
-
-### 対応手順
-1. リリースノートで破壊的変更がないか確認
-2. 以下のファイルの \`KANATA_VERSION\` を \`$LATEST\` に更新
-   - \`scripts/install.ps1\`
-   - \`scripts/install.sh\`
-   - \`scripts/install-macos.sh\`
-3. 動作確認後リリース
-EOF
-)"
+            --body-file /tmp/issue-body.md
           echo "Issue created for kanata $LATEST"
