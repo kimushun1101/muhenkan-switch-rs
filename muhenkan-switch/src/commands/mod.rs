@@ -1,4 +1,6 @@
+pub mod context;
 pub mod dispatch;
+pub mod keys;
 pub mod open_folder;
 pub mod screenshot;
 pub mod search;
