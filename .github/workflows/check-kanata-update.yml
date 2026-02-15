@@ -1,0 +1,69 @@
+name: Check kanata update
+
+on:
+  schedule:
+    # 毎週月曜 9:00 JST (日曜 24:00 UTC)
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # 手動実行も可能
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get current kanata version
+        id: current
+        run: |
+          # install.sh から現在のバージョンを取得
+          version=$(grep -m1 '^KANATA_VERSION=' scripts/install.sh | sed 's/KANATA_VERSION="//' | sed 's/"//')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Current: $version"
+
+      - name: Get latest kanata release
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(gh api repos/jtroo/kanata/releases/latest --jq '.tag_name')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Latest: $version"
+
+      - name: Create issue if update available
+        if: steps.current.outputs.version != steps.latest.outputs.version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CURRENT="${{ steps.current.outputs.version }}"
+          LATEST="${{ steps.latest.outputs.version }}"
+
+          # 同じタイトルの open Issue が既にあればスキップ
+          existing=$(gh issue list --state open --search "kanata $LATEST" --json number --jq 'length')
+          if [ "$existing" -gt 0 ]; then
+            echo "Issue already exists for $LATEST, skipping."
+            exit 0
+          fi
+
+          gh issue create \
+            --title "kanata $LATEST がリリースされました" \
+            --body "$(cat <<EOF
+## kanata アップデート検知
+
+| | バージョン |
+|---|---|
+| 現在 | \`$CURRENT\` |
+| 最新 | \`$LATEST\` |
+
+### リリースノート
+https://github.com/jtroo/kanata/releases/tag/$LATEST
+
+### 対応手順
+1. リリースノートで破壊的変更がないか確認
+2. 以下のファイルの \`KANATA_VERSION\` を \`$LATEST\` に更新
+   - \`scripts/install.ps1\`
+   - \`scripts/install.sh\`
+   - \`scripts/install-macos.sh\`
+3. 動作確認後リリース
+EOF
+)"
+          echo "Issue created for kanata $LATEST"

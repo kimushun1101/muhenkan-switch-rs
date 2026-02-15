@@ -32,29 +32,65 @@
 
 ## セットアップ
 
-### 1. ダウンロード
+### 1. ダウンロード・インストール
 
 [Releases](https://github.com/kimushun1101/muhenkan-switch-rs/releases) から
-お使いの OS 用の zip をダウンロードし、任意のフォルダに展開してください。
+お使いの OS 用のアーカイブをダウンロード・展開し、インストールスクリプトを実行してください。
 
-zip の中身:
 ```
-muhenkan-switch-rs/
-├── kanata_cmd_allowed(.exe)   # kanata 本体
+# Windows: install.ps1 を右クリック →「PowerShell で実行」
+
+# Linux
+./install.sh
+
+# macOS
+./install-macos.sh
+```
+
+インストールスクリプトは以下を自動で行います:
+- kanata のダウンロード（GitHub Releases から）
+- ファイルの配置（下記インストール先）
+- PATH の設定（Windows: ユーザー環境変数、Linux/macOS: `~/.local/bin` にシンボリックリンク）
+- オプション: 自動起動の設定（Windows: スタートアップ、Linux: systemd、macOS: launchd）
+
+| OS | インストール先 |
+|----|--------------|
+| Windows | `%LOCALAPPDATA%\muhenkan-switch-rs` |
+| Linux | `~/.local/share/muhenkan-switch-rs` |
+| macOS | `~/Library/Application Support/muhenkan-switch-rs` |
+
+インストール後のディレクトリ構成:
+```
+<install_dir>/
+├── kanata_cmd_allowed(.exe)   # kanata 本体（自動ダウンロード）
 ├── companion(.exe)            # companion ツール
-├── muhenkan.kbd               # kanata 設定ファイル
+├── muhenkan.kbd               # kanata 設定ファイル (macOS: muhenkan-macos.kbd)
 └── config.toml                # companion 設定ファイル
 ```
 
-### 2. kanata のインストール
+### 2. ターミナルを再起動
 
-zip に kanata が同梱されていない場合は、
-[kanata リリースページ](https://github.com/jtroo/kanata/releases) から
-**`kanata_cmd_allowed`** 版をダウンロードしてください（`cmd` アクション有効版が必要です）。
+PATH の変更を反映するため、ターミナルを再起動してください。
+
+### 3. 起動
+
+```bash
+# Windows
+kanata_cmd_allowed.exe --cfg "%LOCALAPPDATA%\muhenkan-switch-rs\muhenkan.kbd"
+
+# Linux
+kanata_cmd_allowed --cfg ~/.local/share/muhenkan-switch-rs/muhenkan.kbd
+
+# macOS (sudo が必要)
+sudo kanata_cmd_allowed --cfg ~/Library/Application\ Support/muhenkan-switch-rs/muhenkan-macos.kbd
+```
+
+無変換キーを押しながら H/J/K/L でカーソルが移動すれば成功です。
+`Ctrl+Space+Esc` で kanata を終了できます。
 
 #### Linux の追加設定
 
-sudo なしで実行するため、以下のグループ設定が必要です:
+sudo なしで実行するため、以下のグループ設定が必要です（インストールスクリプト実行時にも案内されます）:
 
 ```bash
 sudo groupadd -f uinput
@@ -68,47 +104,18 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 # 再ログインが必要
 ```
 
-### 3. 起動
+### アンインストール
 
-```bash
-# Windows
-kanata_cmd_allowed.exe --cfg muhenkan.kbd
+リリースアーカイブに同梱のアンインストールスクリプトを実行してください:
 
-# Linux
-kanata --cfg muhenkan.kbd
-```
+- **Windows**: `uninstall.ps1` を右クリック →「PowerShell で実行」
+- **Linux**: `./uninstall.sh`
+- **macOS**: `./uninstall-macos.sh`
 
-無変換キーを押しながら H/J/K/L でカーソルが移動すれば成功です。
-`Ctrl+Space+Esc` で kanata を終了できます。
-
-### 4. 常駐化（オプション）
-
-#### Windows — スタートアップ登録
-
-`Win+R` → `shell:startup` → kanata のショートカットを配置。
-または [kanata-tray](https://github.com/rszyma/kanata-tray) を使用。
-
-#### Linux — systemd
-
-```bash
-mkdir -p ~/.config/systemd/user
-
-cat << 'EOF' > ~/.config/systemd/user/kanata.service
-[Unit]
-Description=Kanata keyboard remapper
-
-[Service]
-ExecStart=%h/muhenkan-switch-rs/kanata --cfg %h/muhenkan-switch-rs/muhenkan.kbd
-Restart=on-failure
-RestartSec=3
-
-[Install]
-WantedBy=default.target
-EOF
-
-systemctl --user daemon-reload
-systemctl --user enable --now kanata.service
-```
+スクリプトが手元にない場合は、Releases から再ダウンロードするか、手動で以下を削除してください:
+- インストールディレクトリ（上記表を参照）
+- PATH からインストールディレクトリを除去
+- 自動起動設定（Windows: スタートアップショートカット、Linux: systemd サービス、macOS: launchd エージェント）
 
 ## macOS をお使いの方へ
 
