@@ -2060,7 +2060,7 @@ dependencies = [
 
 [[package]]
 name = "muhenkan-switch"
-version = "2.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -2076,7 +2076,7 @@ dependencies = [
 
 [[package]]
 name = "muhenkan-switch-config"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "indexmap 2.13.0",
@@ -2087,7 +2087,7 @@ dependencies = [
 
 [[package]]
 name = "muhenkan-switch-gui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
