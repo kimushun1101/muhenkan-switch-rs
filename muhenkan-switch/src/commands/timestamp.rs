@@ -10,12 +10,15 @@ pub fn run(action: &str, config: &Config) -> Result<()> {
     let timestamp = Local::now().format(&config.timestamp.format).to_string();
     let explorer_hwnd = super::context::get_foreground_explorer_hwnd();
 
+    let delimiter = &config.timestamp.delimiter;
+
     match (action, explorer_hwnd) {
         // ── V: paste ──
         ("paste", None) => text_paste(&timestamp),
         ("paste", Some(hwnd)) => {
             let toast = Toast::show("処理中...");
-            let result = explorer_rename_prepend(&timestamp, &config.timestamp.position, hwnd);
+            let result =
+                explorer_rename_prepend(&timestamp, &config.timestamp.position, delimiter, hwnd);
             toast.finish(&format_toast_result(&result));
             result.map(|_| ())
         }
@@ -23,7 +26,8 @@ pub fn run(action: &str, config: &Config) -> Result<()> {
         // ── C: copy (Explorer only) ──
         ("copy", Some(hwnd)) => {
             let toast = Toast::show("処理中...");
-            let result = explorer_duplicate(&timestamp, &config.timestamp.position, hwnd);
+            let result =
+                explorer_duplicate(&timestamp, &config.timestamp.position, delimiter, hwnd);
             toast.finish(&format_toast_result(&result));
             result.map(|_| ())
         }
@@ -32,7 +36,8 @@ pub fn run(action: &str, config: &Config) -> Result<()> {
         // ── X: cut (Explorer only) ──
         ("cut", Some(hwnd)) => {
             let toast = Toast::show("処理中...");
-            let result = explorer_rename_remove(&timestamp, &config.timestamp.position, hwnd);
+            let result =
+                explorer_rename_remove(&timestamp, &config.timestamp.position, delimiter, hwnd);
             toast.finish(&format_toast_result(&result));
             result.map(|_| ())
         }
@@ -154,11 +159,16 @@ fn get_selected_paths(_hwnd: isize) -> Result<Vec<PathBuf>> {
 }
 
 /// V: ファイル名にタイムスタンプを付加してリネーム
-fn explorer_rename_prepend(timestamp: &str, position: &str, hwnd: isize) -> Result<Vec<PathBuf>> {
+fn explorer_rename_prepend(
+    timestamp: &str,
+    position: &str,
+    delimiter: &str,
+    hwnd: isize,
+) -> Result<Vec<PathBuf>> {
     let paths = get_selected_paths(hwnd)?;
     let mut results = Vec::with_capacity(paths.len());
     for src in &paths {
-        let dst = build_timestamped_path(src, timestamp, position);
+        let dst = build_timestamped_path(src, timestamp, position, delimiter);
         std::fs::rename(src, &dst)?;
         results.push(dst);
     }
@@ -166,11 +176,16 @@ fn explorer_rename_prepend(timestamp: &str, position: &str, hwnd: isize) -> Resu
 }
 
 /// C: タイムスタンプ付きファイル名で複製
-fn explorer_duplicate(timestamp: &str, position: &str, hwnd: isize) -> Result<Vec<PathBuf>> {
+fn explorer_duplicate(
+    timestamp: &str,
+    position: &str,
+    delimiter: &str,
+    hwnd: isize,
+) -> Result<Vec<PathBuf>> {
     let paths = get_selected_paths(hwnd)?;
     let mut results = Vec::with_capacity(paths.len());
     for src in &paths {
-        let dst = build_timestamped_path(src, timestamp, position);
+        let dst = build_timestamped_path(src, timestamp, position, delimiter);
         std::fs::copy(src, &dst)?;
         results.push(dst);
     }
@@ -178,11 +193,16 @@ fn explorer_duplicate(timestamp: &str, position: &str, hwnd: isize) -> Result<Ve
 }
 
 /// X: ファイル名から本日のタイムスタンプを除去してリネーム
-fn explorer_rename_remove(timestamp: &str, position: &str, hwnd: isize) -> Result<Vec<PathBuf>> {
+fn explorer_rename_remove(
+    timestamp: &str,
+    position: &str,
+    delimiter: &str,
+    hwnd: isize,
+) -> Result<Vec<PathBuf>> {
     let paths = get_selected_paths(hwnd)?;
     let mut results = Vec::new();
     for src in &paths {
-        if let Some(dst) = build_removed_timestamp_path(src, timestamp, position) {
+        if let Some(dst) = build_removed_timestamp_path(src, timestamp, position, delimiter) {
             std::fs::rename(src, &dst)?;
             results.push(dst);
         }
@@ -191,7 +211,12 @@ fn explorer_rename_remove(timestamp: &str, position: &str, hwnd: isize) -> Resul
 }
 
 /// タイムスタンプを付加したファイルパスを構築
-fn build_timestamped_path(src: &Path, timestamp: &str, position: &str) -> PathBuf {
+fn build_timestamped_path(
+    src: &Path,
+    timestamp: &str,
+    position: &str,
+    delimiter: &str,
+) -> PathBuf {
     let stem = src.file_stem().unwrap_or_default().to_string_lossy();
     let ext = src
         .extension()
@@ -199,16 +224,21 @@ fn build_timestamped_path(src: &Path, timestamp: &str, position: &str) -> PathBu
         .unwrap_or_default();
 
     let new_name = if position == "after" {
-        format!("{}_{}{}", stem, timestamp, ext)
+        format!("{}{}{}{}", stem, delimiter, timestamp, ext)
     } else {
-        format!("{}_{}{}", timestamp, stem, ext)
+        format!("{}{}{}{}", timestamp, delimiter, stem, ext)
     };
 
     src.with_file_name(new_name)
 }
 
 /// タイムスタンプを除去したファイルパスを構築 (一致しなければ None)
-fn build_removed_timestamp_path(src: &Path, timestamp: &str, position: &str) -> Option<PathBuf> {
+fn build_removed_timestamp_path(
+    src: &Path,
+    timestamp: &str,
+    position: &str,
+    delimiter: &str,
+) -> Option<PathBuf> {
     let stem = src.file_stem()?.to_string_lossy();
     let ext = src
         .extension()
@@ -216,10 +246,10 @@ fn build_removed_timestamp_path(src: &Path, timestamp: &str, position: &str) -> 
         .unwrap_or_default();
 
     let new_stem = if position == "after" {
-        let suffix = format!("_{}", timestamp);
+        let suffix = format!("{}{}", delimiter, timestamp);
         stem.strip_suffix(&*suffix)?.to_string()
     } else {
-        let prefix = format!("{}_", timestamp);
+        let prefix = format!("{}{}", timestamp, delimiter);
         stem.strip_prefix(&*prefix)?.to_string()
     };
 

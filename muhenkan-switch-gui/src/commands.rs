@@ -212,10 +212,24 @@ pub fn open_config_in_editor() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn validate_timestamp_format(format: String) -> Result<String, String> {
+pub fn validate_timestamp_format(
+    format: String,
+    delimiter: String,
+    position: String,
+) -> Result<String, String> {
     if format.is_empty() {
-        return Err("Format cannot be empty".to_string());
+        return Err("フォーマットを入力してください".to_string());
     }
     let now = chrono::Local::now();
-    Ok(now.format(&format).to_string())
+    use std::fmt::Write;
+    let mut ts = String::new();
+    write!(ts, "{}", now.format(&format))
+        .map_err(|_| "無効なフォーマット文字列です".to_string())?;
+    let (stem, ext) = ("FileName", ".txt");
+    let preview = if position == "after" {
+        format!("{}{}{}{}", stem, delimiter, ts, ext)
+    } else {
+        format!("{}{}{}{}", ts, delimiter, stem, ext)
+    };
+    Ok(preview)
 }

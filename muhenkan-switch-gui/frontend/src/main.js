@@ -51,19 +51,34 @@ function renderConfig() {
 
 // ── Timestamp ──
 function renderTimestamp() {
-  const presetSelect = document.getElementById("ts-format-preset");
-  const customInput = document.getElementById("ts-format-custom");
+  // Format
+  const formatPreset = document.getElementById("ts-format-preset");
+  const formatCustom = document.getElementById("ts-format-custom");
   const format = config.timestamp.format;
 
-  // Check if format matches a preset
-  const presetOption = Array.from(presetSelect.options).find((o) => o.value === format);
-  if (presetOption) {
-    presetSelect.value = format;
-    customInput.classList.add("hidden");
+  const formatOption = Array.from(formatPreset.options).find((o) => o.value === format);
+  if (formatOption) {
+    formatPreset.value = format;
+    formatCustom.classList.add("hidden");
   } else {
-    presetSelect.value = "custom";
-    customInput.value = format;
-    customInput.classList.remove("hidden");
+    formatPreset.value = "custom";
+    formatCustom.value = format;
+    formatCustom.classList.remove("hidden");
+  }
+
+  // Delimiter
+  const delimPreset = document.getElementById("ts-delimiter-preset");
+  const delimCustom = document.getElementById("ts-delimiter-custom");
+  const delimiter = config.timestamp.delimiter ?? "_";
+
+  const delimOption = Array.from(delimPreset.options).find((o) => o.value === delimiter);
+  if (delimOption) {
+    delimPreset.value = delimiter;
+    delimCustom.classList.add("hidden");
+  } else {
+    delimPreset.value = "custom";
+    delimCustom.value = delimiter;
+    delimCustom.classList.remove("hidden");
   }
 
   // Position
@@ -80,10 +95,20 @@ function getTimestampFormat() {
   return preset;
 }
 
+function getTimestampDelimiter() {
+  const preset = document.getElementById("ts-delimiter-preset").value;
+  if (preset === "custom") {
+    return document.getElementById("ts-delimiter-custom").value;
+  }
+  return preset;
+}
+
 async function updateTimestampPreview() {
   const format = getTimestampFormat();
+  const delimiter = getTimestampDelimiter();
+  const position = document.querySelector('input[name="ts-position"]:checked').value;
   try {
-    const preview = await invoke("validate_timestamp_format", { format });
+    const preview = await invoke("validate_timestamp_format", { format, delimiter, position });
     document.getElementById("ts-preview").textContent = preview;
     document.getElementById("ts-preview").style.color = "";
   } catch (e) {
@@ -105,6 +130,25 @@ document.getElementById("ts-format-preset").addEventListener("change", (e) => {
 
 document.getElementById("ts-format-custom").addEventListener("input", () => {
   updateTimestampPreview();
+});
+
+document.getElementById("ts-delimiter-preset").addEventListener("change", (e) => {
+  const customInput = document.getElementById("ts-delimiter-custom");
+  if (e.target.value === "custom") {
+    customInput.classList.remove("hidden");
+    customInput.focus();
+  } else {
+    customInput.classList.add("hidden");
+  }
+  updateTimestampPreview();
+});
+
+document.getElementById("ts-delimiter-custom").addEventListener("input", () => {
+  updateTimestampPreview();
+});
+
+document.querySelectorAll('input[name="ts-position"]').forEach((radio) => {
+  radio.addEventListener("change", () => updateTimestampPreview());
 });
 
 // ── Dispatch key dropdown helper ──
@@ -331,6 +375,7 @@ function collectConfig() {
     timestamp: {
       format: getTimestampFormat(),
       position: document.querySelector('input[name="ts-position"]:checked').value,
+      delimiter: getTimestampDelimiter(),
     },
   };
 

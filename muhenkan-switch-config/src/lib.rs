@@ -125,6 +125,8 @@ pub struct TimestampConfig {
     pub format: String,
     #[serde(default = "default_position")]
     pub position: String,
+    #[serde(default = "default_delimiter")]
+    pub delimiter: String,
 }
 
 impl Default for TimestampConfig {
@@ -132,6 +134,7 @@ impl Default for TimestampConfig {
         Self {
             format: default_format(),
             position: default_position(),
+            delimiter: default_delimiter(),
         }
     }
 }
@@ -142,6 +145,10 @@ fn default_format() -> String {
 
 fn default_position() -> String {
     "before".to_string()
+}
+
+fn default_delimiter() -> String {
+    "_".to_string()
 }
 
 // ── Config path resolution ──
@@ -312,6 +319,7 @@ pub fn save(path: &std::path::Path, config: &Config) -> Result<()> {
         .context("timestamp section is not a table")?;
     ts_table["format"] = toml_edit::value(&config.timestamp.format);
     ts_table["position"] = toml_edit::value(&config.timestamp.position);
+    ts_table["delimiter"] = toml_edit::value(&config.timestamp.delimiter);
 
     std::fs::write(path, doc.to_string())
         .with_context(|| format!("Failed to write config file: {}", path.display()))?;
@@ -328,6 +336,19 @@ pub fn validate(config: &Config) -> Vec<String> {
     // timestamp format の検証
     if config.timestamp.format.is_empty() {
         errors.push("Timestamp format cannot be empty".to_string());
+    }
+
+    // timestamp delimiter の検証 (空=区切りなし は許可)
+    if !config.timestamp.delimiter.is_empty()
+        && config
+            .timestamp
+            .delimiter
+            .contains(&['/', '\\', ':', '*', '?', '"', '<', '>', '|'][..])
+    {
+        errors.push(format!(
+            "Timestamp delimiter contains forbidden character(s): \"{}\"",
+            config.timestamp.delimiter
+        ));
     }
 
     // timestamp position の検証

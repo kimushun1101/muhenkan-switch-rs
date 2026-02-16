@@ -61,13 +61,24 @@
         <div class="form-group">
           <label for="ts-format">フォーマット</label>
           <select id="ts-format-preset">
-            <option value="%Y%m%d">%Y%m%d (20240101)</option>
-            <option value="%Y-%m-%d">%Y-%m-%d (2024-01-01)</option>
-            <option value="%Y/%m/%d">%Y/%m/%d (2024/01/01)</option>
-            <option value="%Y%m%d_%H%M%S">%Y%m%d_%H%M%S (20240101_120000)</option>
+            <option value="%Y%m%d">%Y%m%d (20260216) - 最も一般的</option>
+            <option value="%y%m%d">%y%m%d (260216) - コンパクト</option>
+            <option value="%Y-%m-%d">%Y-%m-%d (2026-02-16) - 視認性重視</option>
+            <option value="%Y%m%d_%H%M%S">%Y%m%d_%H%M%S (20260216_142530) - 日時付き</option>
             <option value="custom">カスタム...</option>
           </select>
           <input type="text" id="ts-format-custom" placeholder="%Y%m%d" class="hidden">
+        </div>
+
+        <div class="form-group">
+          <label for="ts-delimiter">区切り文字</label>
+          <select id="ts-delimiter-preset">
+            <option value="_">_ (アンダースコア)</option>
+            <option value="-">- (ハイフン)</option>
+            <option value="">なし</option>
+            <option value="custom">カスタム...</option>
+          </select>
+          <input type="text" id="ts-delimiter-custom" placeholder="_" class="hidden" maxlength="3">
         </div>
 
         <div class="form-group">
@@ -75,11 +86,11 @@
           <div class="radio-group">
             <label class="radio-label">
               <input type="radio" name="ts-position" value="before" checked>
-              前 (タイムスタンプ_ファイル名)
+              前 (タイムスタンプ＋ファイル名)
             </label>
             <label class="radio-label">
               <input type="radio" name="ts-position" value="after">
-              後 (ファイル名_タイムスタンプ)
+              後 (ファイル名＋タイムスタンプ)
             </label>
           </div>
         </div>
