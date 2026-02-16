@@ -188,6 +188,17 @@ button:disabled {
   border-color: var(--accent-hover);
 }
 
+.btn-danger {
+  background: var(--red);
+  color: var(--bg);
+  border-color: var(--red);
+  font-weight: 600;
+}
+
+.btn-danger:hover {
+  opacity: 0.85;
+}
+
 .btn-add {
   margin-top: 8px;
   font-size: 12px;

@@ -197,6 +197,22 @@ pub async fn browse_folder(app: tauri::AppHandle) -> Result<Option<String>, Stri
 }
 
 #[tauri::command]
+pub fn get_config_path() -> String {
+    resolve_config_path().display().to_string()
+}
+
+#[tauri::command]
+pub fn get_app_version(app: tauri::AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+#[tauri::command]
+pub fn quit_app(app: tauri::AppHandle, manager: State<KanataManager>) {
+    let _ = manager.stop();
+    app.exit(0);
+}
+
+#[tauri::command]
 pub fn open_install_dir() -> Result<(), String> {
     let dir = std::env::current_exe()
         .ok()
@@ -209,6 +225,27 @@ pub fn open_install_dir() -> Result<(), String> {
 pub fn open_config_in_editor() -> Result<(), String> {
     let path = resolve_config_path();
     open::that(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn open_help_window(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(win) = app.get_webview_window("help") {
+        let _ = win.set_focus();
+        return Ok(());
+    }
+    // Window creation dispatches to the main thread via run_on_main_thread().
+    // Spawn a thread so the invoke() returns immediately and IPC stays responsive.
+    std::thread::spawn(move || {
+        use tauri::{WebviewUrl, WebviewWindowBuilder};
+        let _ = WebviewWindowBuilder::new(&app, "help", WebviewUrl::App("help.html".into()))
+            .title("使い方 — muhenkan-switch")
+            .inner_size(520.0, 480.0)
+            .resizable(true)
+            .center()
+            .build();
+    });
+    Ok(())
 }
 
 #[tauri::command]
