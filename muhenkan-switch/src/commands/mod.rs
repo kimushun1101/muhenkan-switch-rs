@@ -6,3 +6,4 @@ pub mod screenshot;
 pub mod search;
 pub mod switch_app;
 pub mod timestamp;
+pub mod toast;

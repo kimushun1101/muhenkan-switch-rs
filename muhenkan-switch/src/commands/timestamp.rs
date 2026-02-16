@@ -3,6 +3,7 @@ use arboard::Clipboard;
 use chrono::Local;
 use std::path::{Path, PathBuf};
 
+use super::toast::Toast;
 use crate::config::Config;
 
 pub fn run(action: &str, config: &Config) -> Result<()> {
@@ -13,18 +14,27 @@ pub fn run(action: &str, config: &Config) -> Result<()> {
         // ── V: paste ──
         ("paste", None) => text_paste(&timestamp),
         ("paste", Some(hwnd)) => {
-            explorer_rename_prepend(&timestamp, &config.timestamp.position, hwnd)
+            let toast = Toast::show("処理中...");
+            let result = explorer_rename_prepend(&timestamp, &config.timestamp.position, hwnd);
+            toast.finish(&format_toast_result(&result));
+            result.map(|_| ())
         }
 
         // ── C: copy (Explorer only) ──
         ("copy", Some(hwnd)) => {
-            explorer_duplicate(&timestamp, &config.timestamp.position, hwnd)
+            let toast = Toast::show("処理中...");
+            let result = explorer_duplicate(&timestamp, &config.timestamp.position, hwnd);
+            toast.finish(&format_toast_result(&result));
+            result.map(|_| ())
         }
         ("copy", None) => Ok(()),
 
         // ── X: cut (Explorer only) ──
         ("cut", Some(hwnd)) => {
-            explorer_rename_remove(&timestamp, &config.timestamp.position, hwnd)
+            let toast = Toast::show("処理中...");
+            let result = explorer_rename_remove(&timestamp, &config.timestamp.position, hwnd);
+            toast.finish(&format_toast_result(&result));
+            result.map(|_| ())
         }
         ("cut", None) => Ok(()),
 
@@ -32,6 +42,21 @@ pub fn run(action: &str, config: &Config) -> Result<()> {
             "Unknown timestamp action: '{}'. Use paste, copy, or cut.",
             action
         ),
+    }
+}
+
+fn format_toast_result(result: &Result<Vec<PathBuf>>) -> String {
+    match result {
+        Ok(paths) if paths.is_empty() => "(no selection)".to_string(),
+        Ok(paths) if paths.len() == 1 => {
+            let name = paths[0]
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            format!("\u{2713} {}", name)
+        }
+        Ok(paths) => format!("\u{2713} {} files", paths.len()),
+        Err(e) => format!("\u{2717} {}", e),
     }
 }
 
@@ -129,34 +154,40 @@ fn get_selected_paths(_hwnd: isize) -> Result<Vec<PathBuf>> {
 }
 
 /// V: ファイル名にタイムスタンプを付加してリネーム
-fn explorer_rename_prepend(timestamp: &str, position: &str, hwnd: isize) -> Result<()> {
+fn explorer_rename_prepend(timestamp: &str, position: &str, hwnd: isize) -> Result<Vec<PathBuf>> {
     let paths = get_selected_paths(hwnd)?;
+    let mut results = Vec::with_capacity(paths.len());
     for src in &paths {
         let dst = build_timestamped_path(src, timestamp, position);
         std::fs::rename(src, &dst)?;
+        results.push(dst);
     }
-    Ok(())
+    Ok(results)
 }
 
 /// C: タイムスタンプ付きファイル名で複製
-fn explorer_duplicate(timestamp: &str, position: &str, hwnd: isize) -> Result<()> {
+fn explorer_duplicate(timestamp: &str, position: &str, hwnd: isize) -> Result<Vec<PathBuf>> {
     let paths = get_selected_paths(hwnd)?;
+    let mut results = Vec::with_capacity(paths.len());
     for src in &paths {
         let dst = build_timestamped_path(src, timestamp, position);
         std::fs::copy(src, &dst)?;
+        results.push(dst);
     }
-    Ok(())
+    Ok(results)
 }
 
 /// X: ファイル名から本日のタイムスタンプを除去してリネーム
-fn explorer_rename_remove(timestamp: &str, position: &str, hwnd: isize) -> Result<()> {
+fn explorer_rename_remove(timestamp: &str, position: &str, hwnd: isize) -> Result<Vec<PathBuf>> {
     let paths = get_selected_paths(hwnd)?;
+    let mut results = Vec::new();
     for src in &paths {
         if let Some(dst) = build_removed_timestamp_path(src, timestamp, position) {
             std::fs::rename(src, &dst)?;
+            results.push(dst);
         }
     }
-    Ok(())
+    Ok(results)
 }
 
 /// タイムスタンプを付加したファイルパスを構築
