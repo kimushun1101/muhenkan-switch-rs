@@ -39,8 +39,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build muhenkan-switch
-        working-directory: muhenkan-switch
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }} -p muhenkan-switch
 
       - name: Package release
         shell: bash
@@ -49,7 +48,7 @@ jobs:
           mkdir -p "$RELEASE_DIR"
 
           # muhenkan-switch バイナリ
-          cp "muhenkan-switch/target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "$RELEASE_DIR/"
+          cp "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "$RELEASE_DIR/"
 
           # 設定ファイル
           cp config/default.toml "$RELEASE_DIR/config.toml"
