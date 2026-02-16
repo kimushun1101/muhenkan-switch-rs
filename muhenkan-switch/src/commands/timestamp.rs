@@ -1,31 +1,9 @@
 use anyhow::Result;
 use arboard::Clipboard;
 use chrono::Local;
-use std::time::Duration;
+use std::path::{Path, PathBuf};
 
 use crate::config::Config;
-
-/// timestamp と current を position に応じて結合
-fn compose_text(timestamp: &str, current: &str, position: &str) -> String {
-    match position {
-        "after" => format!("{}_{}", current, timestamp),
-        _ => format!("{}_{}", timestamp, current),
-    }
-}
-
-/// テキストから本日のタイムスタンプを除去
-fn remove_timestamp(text: &str, timestamp: &str, position: &str) -> String {
-    match position {
-        "after" => text
-            .strip_suffix(&format!("_{}", timestamp))
-            .unwrap_or(text)
-            .to_string(),
-        _ => text
-            .strip_prefix(&format!("{}_", timestamp))
-            .unwrap_or(text)
-            .to_string(),
-    }
-}
 
 pub fn run(action: &str, config: &Config) -> Result<()> {
     let timestamp = Local::now().format(&config.timestamp.format).to_string();
@@ -38,17 +16,17 @@ pub fn run(action: &str, config: &Config) -> Result<()> {
             explorer_rename_prepend(&timestamp, &config.timestamp.position, hwnd)
         }
 
-        // ── C: copy ──
-        ("copy", None) => text_copy(&timestamp, &config.timestamp.position),
+        // ── C: copy (Explorer only) ──
         ("copy", Some(hwnd)) => {
             explorer_duplicate(&timestamp, &config.timestamp.position, hwnd)
         }
+        ("copy", None) => Ok(()),
 
-        // ── X: cut ──
-        ("cut", None) => text_remove(&timestamp, &config.timestamp.position),
+        // ── X: cut (Explorer only) ──
         ("cut", Some(hwnd)) => {
             explorer_rename_remove(&timestamp, &config.timestamp.position, hwnd)
         }
+        ("cut", None) => Ok(()),
 
         _ => anyhow::bail!(
             "Unknown timestamp action: '{}'. Use paste, copy, or cut.",
@@ -67,176 +45,152 @@ fn text_paste(timestamp: &str) -> Result<()> {
     Ok(())
 }
 
-/// C: 選択テキストをコピー → タイムスタンプと結合 → クリップボードへ
-fn text_copy(timestamp: &str, position: &str) -> Result<()> {
-    super::keys::simulate_copy()?;
-    std::thread::sleep(Duration::from_millis(200));
-    let mut clipboard = Clipboard::new()?;
-    let current = clipboard.get_text().unwrap_or_default();
-    let text = compose_text(timestamp, &current, position);
-    clipboard.set_text(&text)?;
-    Ok(())
-}
+// ── Explorer コンテキスト (COM API 直接呼び出し) ──
 
-/// X: 選択テキストから本日の日付を除去して貼り戻す
-fn text_remove(timestamp: &str, position: &str) -> Result<()> {
-    super::keys::simulate_copy()?;
-    std::thread::sleep(Duration::from_millis(200));
-    let mut clipboard = Clipboard::new()?;
-    let current = clipboard.get_text().unwrap_or_default();
-    let cleaned = remove_timestamp(&current, timestamp, position);
-    clipboard.set_text(&cleaned)?;
-    super::keys::simulate_paste()?;
-    Ok(())
-}
-
-// ── Explorer コンテキスト (Shell.Application COM 経由) ──
-
-/// Explorer の選択ファイルに対して操作を実行する共通ヘルパー
-/// HWND は Rust 側で取得済みなので Add-Type 不要
+/// COM API を通じて Explorer ウィンドウの選択ファイルパスを取得
 #[cfg(target_os = "windows")]
-fn run_explorer_script(per_item_body: &str, hwnd: isize) -> Result<()> {
-    use std::process::Command;
+fn get_selected_paths(hwnd: isize) -> Result<Vec<PathBuf>> {
+    use windows::core::Interface;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoTaskMemFree, IServiceProvider, CLSCTX_LOCAL_SERVER,
+        COINIT_APARTMENTTHREADED,
+    };
+    use windows::Win32::System::Ole::IOleWindow;
+    use windows::Win32::System::Variant::VARIANT;
+    use windows::Win32::UI::Shell::{
+        IFolderView2, IShellItem, IShellItemArray, IShellWindows, ShellWindows,
+        SID_STopLevelBrowser, SIGDN_FILESYSPATH,
+    };
+    use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, GA_ROOT};
 
-    let script = r#"
-$fgHwnd = __HWND__
-$shell = New-Object -ComObject Shell.Application
-foreach ($w in $shell.Windows()) {
-    if ($w.HWND -eq $fgHwnd) {
-        foreach ($item in $w.Document.SelectedItems()) {
-            $src = $item.Path
-            $dir = Split-Path $src
-            $name = [IO.Path]::GetFileNameWithoutExtension($src)
-            $ext = [IO.Path]::GetExtension($src)
-            __BODY__
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+
+        let shell_windows: IShellWindows =
+            CoCreateInstance(&ShellWindows, None, CLSCTX_LOCAL_SERVER)?;
+
+        let count = shell_windows.Count()?;
+        let target = HWND(hwnd as *mut _);
+
+        for i in 0..count {
+            let v = VARIANT::from(i);
+            let disp = match shell_windows.Item(&v) {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+
+            let sp: IServiceProvider = match disp.cast() {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+
+            let browser: windows::Win32::UI::Shell::IShellBrowser =
+                match sp.QueryService(&SID_STopLevelBrowser) {
+                    Ok(b) => b,
+                    Err(_) => continue,
+                };
+
+            let ole: IOleWindow = browser.cast()?;
+            let wnd = ole.GetWindow()?;
+            let root = GetAncestor(wnd, GA_ROOT);
+            if wnd != target && root != target {
+                continue;
+            }
+
+            let view = browser.QueryActiveShellView()?;
+            let fv: IFolderView2 = view.cast()?;
+            let items: IShellItemArray = match fv.GetSelection(false) {
+                Ok(items) => items,
+                Err(_) => return Ok(vec![]),
+            };
+
+            let item_count = items.GetCount()?;
+            let mut paths = Vec::with_capacity(item_count as usize);
+
+            for j in 0..item_count {
+                let item: IShellItem = items.GetItemAt(j)?;
+                let name_pwstr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
+                let path_string = name_pwstr.to_string()?;
+                CoTaskMemFree(Some(name_pwstr.0 as _));
+                paths.push(PathBuf::from(path_string));
+            }
+
+            return Ok(paths);
         }
-        break
-    }
-}
-"#
-    .replace("__HWND__", &hwnd.to_string())
-    .replace("__BODY__", per_item_body);
 
-    Command::new("powershell")
-        .args(["-NoProfile", "-Command", &script])
-        .output()?;
-    Ok(())
+        Ok(vec![])
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
-fn run_explorer_script(_per_item_body: &str, _hwnd: isize) -> Result<()> {
+fn get_selected_paths(_hwnd: isize) -> Result<Vec<PathBuf>> {
     anyhow::bail!("Explorer file operations are only supported on Windows")
 }
 
 /// V: ファイル名にタイムスタンプを付加してリネーム
 fn explorer_rename_prepend(timestamp: &str, position: &str, hwnd: isize) -> Result<()> {
-    let body = if position == "after" {
-        format!(
-            "$newName = $name + '_{ts}' + $ext\nRename-Item -LiteralPath $src -NewName $newName",
-            ts = timestamp
-        )
-    } else {
-        format!(
-            "$newName = '{ts}_' + $name + $ext\nRename-Item -LiteralPath $src -NewName $newName",
-            ts = timestamp
-        )
-    };
-    run_explorer_script(&body, hwnd)
+    let paths = get_selected_paths(hwnd)?;
+    for src in &paths {
+        let dst = build_timestamped_path(src, timestamp, position);
+        std::fs::rename(src, &dst)?;
+    }
+    Ok(())
 }
 
 /// C: タイムスタンプ付きファイル名で複製
 fn explorer_duplicate(timestamp: &str, position: &str, hwnd: isize) -> Result<()> {
-    let body = if position == "after" {
-        format!(
-            "$newName = $name + '_{ts}' + $ext\n$dst = Join-Path $dir $newName\nCopy-Item -LiteralPath $src -Destination $dst",
-            ts = timestamp
-        )
-    } else {
-        format!(
-            "$newName = '{ts}_' + $name + $ext\n$dst = Join-Path $dir $newName\nCopy-Item -LiteralPath $src -Destination $dst",
-            ts = timestamp
-        )
-    };
-    run_explorer_script(&body, hwnd)
+    let paths = get_selected_paths(hwnd)?;
+    for src in &paths {
+        let dst = build_timestamped_path(src, timestamp, position);
+        std::fs::copy(src, &dst)?;
+    }
+    Ok(())
 }
 
 /// X: ファイル名から本日のタイムスタンプを除去してリネーム
 fn explorer_rename_remove(timestamp: &str, position: &str, hwnd: isize) -> Result<()> {
-    let body = if position == "after" {
-        format!(
-            r#"if ($name.EndsWith('_{ts}')) {{
-    $newName = $name.Substring(0, $name.Length - {len}) + $ext
-    Rename-Item -LiteralPath $src -NewName $newName
-}}"#,
-            ts = timestamp,
-            len = timestamp.len() + 1
-        )
-    } else {
-        format!(
-            r#"if ($name.StartsWith('{ts}_')) {{
-    $newName = $name.Substring({len}) + $ext
-    Rename-Item -LiteralPath $src -NewName $newName
-}}"#,
-            ts = timestamp,
-            len = timestamp.len() + 1
-        )
-    };
-    run_explorer_script(&body, hwnd)
+    let paths = get_selected_paths(hwnd)?;
+    for src in &paths {
+        if let Some(dst) = build_removed_timestamp_path(src, timestamp, position) {
+            std::fs::rename(src, &dst)?;
+        }
+    }
+    Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// タイムスタンプを付加したファイルパスを構築
+fn build_timestamped_path(src: &Path, timestamp: &str, position: &str) -> PathBuf {
+    let stem = src.file_stem().unwrap_or_default().to_string_lossy();
+    let ext = src
+        .extension()
+        .map(|e| format!(".{}", e.to_string_lossy()))
+        .unwrap_or_default();
 
-    // --- compose_text ---
+    let new_name = if position == "after" {
+        format!("{}_{}{}", stem, timestamp, ext)
+    } else {
+        format!("{}_{}{}", timestamp, stem, ext)
+    };
 
-    #[test]
-    fn test_compose_text_before() {
-        assert_eq!(compose_text("TS", "current", "before"), "TS_current");
-    }
+    src.with_file_name(new_name)
+}
 
-    #[test]
-    fn test_compose_text_after() {
-        assert_eq!(compose_text("TS", "current", "after"), "current_TS");
-    }
+/// タイムスタンプを除去したファイルパスを構築 (一致しなければ None)
+fn build_removed_timestamp_path(src: &Path, timestamp: &str, position: &str) -> Option<PathBuf> {
+    let stem = src.file_stem()?.to_string_lossy();
+    let ext = src
+        .extension()
+        .map(|e| format!(".{}", e.to_string_lossy()))
+        .unwrap_or_default();
 
-    #[test]
-    fn test_compose_text_unknown_position_defaults_to_before() {
-        assert_eq!(compose_text("TS", "current", "middle"), "TS_current");
-    }
+    let new_stem = if position == "after" {
+        let suffix = format!("_{}", timestamp);
+        stem.strip_suffix(&*suffix)?.to_string()
+    } else {
+        let prefix = format!("{}_", timestamp);
+        stem.strip_prefix(&*prefix)?.to_string()
+    };
 
-    #[test]
-    fn test_compose_text_with_empty_timestamp() {
-        assert_eq!(compose_text("", "current", "before"), "_current");
-    }
-
-    // --- remove_timestamp ---
-
-    #[test]
-    fn test_remove_timestamp_before() {
-        assert_eq!(remove_timestamp("TS_hello", "TS", "before"), "hello");
-    }
-
-    #[test]
-    fn test_remove_timestamp_after() {
-        assert_eq!(remove_timestamp("hello_TS", "TS", "after"), "hello");
-    }
-
-    #[test]
-    fn test_remove_timestamp_not_found() {
-        assert_eq!(remove_timestamp("hello", "TS", "before"), "hello");
-    }
-
-    #[test]
-    fn test_remove_timestamp_different_date_not_removed() {
-        assert_eq!(
-            remove_timestamp("20250101_hello", "20260216", "before"),
-            "20250101_hello"
-        );
-    }
-
-    #[test]
-    fn test_remove_timestamp_after_not_found() {
-        assert_eq!(remove_timestamp("hello", "TS", "after"), "hello");
-    }
+    Some(src.with_file_name(format!("{}{}", new_stem, ext)))
 }
