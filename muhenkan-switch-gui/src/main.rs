@@ -26,9 +26,13 @@ fn main() {
             commands::get_running_processes,
             commands::get_autostart_enabled,
             commands::set_autostart_enabled,
+            commands::get_config_path,
+            commands::get_app_version,
+            commands::quit_app,
             commands::browse_folder,
             commands::open_install_dir,
             commands::open_config_in_editor,
+            commands::open_help_window,
             commands::validate_timestamp_format,
         ])
         .setup(|app| {
@@ -37,19 +41,25 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // ×ボタンでトレイに最小化（終了しない）
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+                if window.label() == "main" {
+                    // メインウィンドウは×ボタンでトレイに最小化（終了しない）
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+                // それ以外（help 等）は通常通り閉じる
             }
         })
         .build(tauri::generate_context!())
         .expect("error building tauri application");
 
     app.run(|_app_handle, event| {
-        // Prevent app exit when all windows are closed (tray app)
-        if let tauri::RunEvent::ExitRequested { api, .. } = event {
-            api.prevent_exit();
+        // code == None: 全ウィンドウ閉じによる自動終了 → トレイ常駐のため阻止
+        // code == Some(_): app.exit() による意図的な終了 → 許可
+        if let tauri::RunEvent::ExitRequested { code, api, .. } = event {
+            if code.is_none() {
+                api.prevent_exit();
+            }
         }
     });
 }

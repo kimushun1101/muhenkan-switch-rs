@@ -459,34 +459,7 @@ document.getElementById("btn-defaults").addEventListener("click", async () => {
   }
 });
 
-// ── Kanata controls ──
-document.getElementById("btn-kanata-start").addEventListener("click", async () => {
-  try {
-    await invoke("start_kanata");
-    await refreshKanataStatus();
-  } catch (e) {
-    alert("kanata の開始に失敗しました:\n" + e);
-  }
-});
-
-document.getElementById("btn-kanata-stop").addEventListener("click", async () => {
-  try {
-    await invoke("stop_kanata");
-    await refreshKanataStatus();
-  } catch (e) {
-    alert("kanata の停止に失敗しました:\n" + e);
-  }
-});
-
-document.getElementById("btn-kanata-restart").addEventListener("click", async () => {
-  try {
-    await invoke("restart_kanata");
-    await refreshKanataStatus();
-  } catch (e) {
-    alert("kanata の再起動に失敗しました:\n" + e);
-  }
-});
-
+// ── Kanata status ──
 async function refreshKanataStatus() {
   try {
     const status = await invoke("get_kanata_status");
@@ -497,25 +470,46 @@ async function refreshKanataStatus() {
 }
 
 function updateKanataUI(running) {
-  const dots = document.querySelectorAll(".status-dot");
-  const text = document.getElementById("kanata-status-text");
+  // Footer
+  const footerDot = document.getElementById("footer-kanata-dot");
   const footerText = document.getElementById("footer-kanata-text");
-
-  dots.forEach((dot) => {
-    dot.classList.toggle("running", running);
-  });
-  text.textContent = running ? "実行中" : "停止中";
-  footerText.textContent = running ? "kanata: 実行中" : "kanata: 停止中";
-
-  // ボタンの有効/無効を切り替え
-  document.getElementById("btn-kanata-start").disabled = running;
-  document.getElementById("btn-kanata-stop").disabled = !running;
-  document.getElementById("btn-kanata-restart").disabled = !running;
+  if (footerDot) footerDot.classList.toggle("running", running);
+  if (footerText) footerText.textContent = running ? "kanata: 実行中" : "kanata: 停止中";
+  // General tab
+  const genDot = document.getElementById("general-kanata-dot");
+  const genText = document.getElementById("general-kanata-text");
+  if (genDot) genDot.classList.toggle("running", running);
+  if (genText) genText.textContent = running ? "実行中" : "停止中";
 }
 
-// Listen for status changes from backend
 listen("kanata-status-changed", (event) => {
   updateKanataUI(event.payload);
+});
+
+// ── General tab: help / install dir / quit ──
+document.getElementById("btn-help").addEventListener("click", async () => {
+  try {
+    await invoke("open_help_window");
+  } catch (e) {
+    console.error("ヘルプウィンドウの表示に失敗:", e);
+  }
+});
+
+document.getElementById("btn-github").addEventListener("click", async () => {
+  const { open } = window.__TAURI__.shell;
+  await open("https://github.com/kimushun1101/muhenkan-switch-rs");
+});
+
+document.getElementById("btn-open-dir").addEventListener("click", async () => {
+  try {
+    await invoke("open_install_dir");
+  } catch (e) {
+    alert("インストール先を開けませんでした:\n" + e);
+  }
+});
+
+document.getElementById("btn-quit").addEventListener("click", async () => {
+  await invoke("quit_app");
 });
 
 // ── Autostart checkbox ──
@@ -547,6 +541,13 @@ async function init() {
   await loadConfig();
   await refreshKanataStatus();
   await loadAutostart();
+
+  // General tab info
+  try {
+    document.getElementById("app-version").textContent = "v" + await invoke("get_app_version");
+  } catch (e) {
+    console.error("バージョン情報の取得に失敗:", e);
+  }
 }
 
 init();

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使い方 — muhenkan-switch</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      color: #cdd6f4;
+      background: #1e1e2e;
+      line-height: 1.6;
+    }
+    .help { max-width: 520px; margin: 0 auto; padding: 20px 24px; }
+    h1 { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #89b4fa; }
+    h2 { font-size: 14px; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    section { margin-bottom: 20px; }
+    p { margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 10px; border: 1px solid #45475a; }
+    th { background: #282840; font-weight: 600; color: #8888aa; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    td { background: #1a1a2e; }
+    kbd {
+      display: inline-block; padding: 1px 6px;
+      font-family: "Cascadia Code", "Consolas", monospace; font-size: 12px;
+      background: #282840; border: 1px solid #45475a; border-radius: 3px; color: #f9e2af;
+    }
+    ol { padding-left: 20px; }
+    ol li { margin-bottom: 4px; }
+    code { font-family: "Cascadia Code", "Consolas", monospace; font-size: 12px; color: #8888aa; }
+  </style>
+</head>
+<body>
+  <div class="help">
+    <h1>muhenkan-switch 使い方</h1>
+
+    <section>
+      <h2>概要</h2>
+      <p>
+        <strong>muhenkan-switch</strong> は、無変換キーをモディファイアキーとして活用するツールです。
+        無変換キーを押しながら割り当てられたキーを押すことで、さまざまな操作をすばやく実行できます。
+      </p>
+    </section>
+
+    <section>
+      <h2>キー操作一覧</h2>
+      <table>
+        <thead>
+          <tr><th>キー</th><th>機能</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><kbd>無変換</kbd> + <kbd>割当キー</kbd></td><td>各タブで設定された操作を実行</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>設定タブ</h2>
+      <table>
+        <thead>
+          <tr><th>タブ</th><th>説明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>タイムスタンプ</td><td>ファイル名に付与するタイムスタンプのフォーマット・区切り文字・位置を設定</td></tr>
+          <tr><td>検索</td><td>無変換+キーで選択テキストを検索エンジンで検索する設定</td></tr>
+          <tr><td>フォルダ</td><td>無変換+キーでフォルダを開く設定</td></tr>
+          <tr><td>アプリ</td><td>無変換+キーでアプリを切り替え／起動する設定</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>更新方法</h2>
+      <p>インストール先フォルダの <code>update.bat</code> を実行してください。最新版のダウンロードとインストールが自動で行われます。</p>
+    </section>
+
+    <section>
+      <h2>アンインストール</h2>
+      <p>インストール先フォルダの <code>uninstall.bat</code> を実行してください。</p>
+    </section>
+  </div>
+</body>
+</html>

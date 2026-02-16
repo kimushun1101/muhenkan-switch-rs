@@ -28,35 +28,39 @@
           <legend>起動</legend>
           <label class="checkbox-label">
             <input type="checkbox" id="opt-autostart">
-            Windows 起動時に自動起動
-          </label>
-          <label class="checkbox-label">
-            <input type="checkbox" id="opt-start-kanata">
-            kanata を自動的に開始
-          </label>
-          <label class="checkbox-label">
-            <input type="checkbox" id="opt-start-minimized">
-            トレイに最小化して起動
+            Windows 起動時に自動起動（トレイ常駐）
           </label>
         </fieldset>
 
         <fieldset>
-          <legend>kanata</legend>
-          <div class="kanata-status">
-            <span class="status-dot" id="kanata-dot"></span>
-            <span id="kanata-status-text">停止中</span>
+          <legend>情報</legend>
+          <div class="form-group">
+            <label>バージョン</label>
+            <span id="app-version">-</span>
           </div>
-          <div class="button-row">
-            <button id="btn-kanata-start">開始</button>
-            <button id="btn-kanata-stop">停止</button>
-            <button id="btn-kanata-restart">再起動</button>
+          <div class="form-group">
+            <label>kanata</label>
+            <span class="status-dot" id="general-kanata-dot"></span>
+            <span id="general-kanata-text">停止中</span>
           </div>
         </fieldset>
+
+        <fieldset>
+          <legend>ヘルプ</legend>
+          <div class="button-row">
+            <button id="btn-help">使い方</button>
+            <button id="btn-github">GitHub</button>
+            <button id="btn-open-dir">インストール先を開く</button>
+            <button id="btn-quit" class="btn-danger">終了</button>
+          </div>
+        </fieldset>
+
       </div>
 
       <!-- Timestamp -->
       <div class="panel" id="panel-timestamp">
         <h2>タイムスタンプ</h2>
+        <p class="hint">選択しているファイルやフォルダの名前にタイムスタンプを付与・除去します。無変換+<code>V</code> 付与 / <code>C</code> 付与(コピー) / <code>X</code> 除去</p>
 
         <div class="form-group">
           <label for="ts-format">フォーマット</label>
