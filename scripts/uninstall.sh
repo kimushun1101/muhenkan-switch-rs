@@ -6,6 +6,7 @@ set -euo pipefail
 INSTALL_DIR="$HOME/.local/share/muhenkan-switch-rs"
 BIN_DIR="$HOME/.local/bin"
 SERVICE_FILE="$HOME/.config/systemd/user/kanata.service"
+AUTOSTART_FILE="$HOME/.config/autostart/muhenkan-switch-gui.desktop"
 
 echo ""
 echo "=== muhenkan-switch-rs アンインストーラー (Linux) ==="
@@ -19,9 +20,12 @@ fi
 
 echo "以下を削除します:"
 echo "  - インストールディレクトリ: $INSTALL_DIR"
-echo "  - シンボリックリンク: $BIN_DIR/muhenkan-switch, $BIN_DIR/kanata_cmd_allowed"
+echo "  - シンボリックリンク: $BIN_DIR/muhenkan-switch, $BIN_DIR/muhenkan-switch-gui, $BIN_DIR/kanata_cmd_allowed"
 if [ -f "$SERVICE_FILE" ]; then
     echo "  - systemd サービス: kanata.service"
+fi
+if [ -f "$AUTOSTART_FILE" ]; then
+    echo "  - 自動起動: $AUTOSTART_FILE"
 fi
 echo ""
 
@@ -31,7 +35,7 @@ if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
     exit 0
 fi
 
-# ── systemd サービス停止・削除 ──
+# ── systemd サービス停止・削除（互換性）──
 if [ -f "$SERVICE_FILE" ]; then
     echo ""
     echo "systemd サービスを停止・削除しています..."
@@ -42,6 +46,14 @@ if [ -f "$SERVICE_FILE" ]; then
     echo "[OK] systemd サービスを削除しました"
 else
     echo "[SKIP] systemd サービスは存在しません"
+fi
+
+# ── 自動起動 .desktop ファイル削除 ──
+if [ -f "$AUTOSTART_FILE" ]; then
+    rm -f "$AUTOSTART_FILE"
+    echo "[OK] 自動起動設定を削除しました"
+else
+    echo "[SKIP] 自動起動設定は存在しません"
 fi
 
 # ── シンボリックリンク削除（安全チェック付き）──
@@ -63,6 +75,7 @@ remove_symlink() {
 }
 
 remove_symlink "muhenkan-switch"
+remove_symlink "muhenkan-switch-gui"
 remove_symlink "kanata_cmd_allowed"
 
 # ── インストールディレクトリ削除 ──

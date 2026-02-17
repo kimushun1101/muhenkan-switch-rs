@@ -81,13 +81,15 @@ copy_file() {
 }
 
 copy_file "muhenkan-switch" "muhenkan-switch"
+copy_file "muhenkan-switch-gui" "muhenkan-switch-gui"
 copy_file "config.toml" "config.toml"
 copy_file "muhenkan-macos.kbd" "muhenkan-macos.kbd"
 copy_file "update-macos.sh" "update-macos.sh"
 copy_file "uninstall-macos.sh" "uninstall-macos.sh"
 
-# muhenkan-switch に実行権限を付与
+# 実行権限を付与
 chmod +x "$INSTALL_DIR/muhenkan-switch" 2>/dev/null || true
+chmod +x "$INSTALL_DIR/muhenkan-switch-gui" 2>/dev/null || true
 
 # ── kanata ダウンロード ──
 kanata_dest="$INSTALL_DIR/kanata_cmd_allowed"
@@ -138,6 +140,7 @@ create_symlink() {
 }
 
 create_symlink "$INSTALL_DIR/muhenkan-switch" "muhenkan-switch"
+create_symlink "$INSTALL_DIR/muhenkan-switch-gui" "muhenkan-switch-gui"
 create_symlink "$INSTALL_DIR/kanata_cmd_allowed" "kanata_cmd_allowed"
 
 # ── PATH チェック ──
@@ -152,7 +155,7 @@ fi
 
 # ── launchd エージェント（オプション）──
 echo ""
-read -rp "launchd エージェント（自動起動）をインストールしますか？ (y/N): " install_agent
+read -rp "自動起動（ログイン時に muhenkan-switch GUI を起動）を設定しますか？ (y/N): " install_agent
 if [ "$install_agent" = "y" ] || [ "$install_agent" = "Y" ]; then
     mkdir -p "$PLIST_DIR"
     mkdir -p "$LOG_DIR"
@@ -166,9 +169,7 @@ if [ "$install_agent" = "y" ] || [ "$install_agent" = "Y" ]; then
     <string>com.muhenkan-switch-rs.kanata</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$INSTALL_DIR/kanata_cmd_allowed</string>
-        <string>--cfg</string>
-        <string>$INSTALL_DIR/muhenkan-macos.kbd</string>
+        <string>$INSTALL_DIR/muhenkan-switch-gui</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -188,10 +189,6 @@ EOF
     echo "[OK] launchd エージェントをインストールしました"
     echo "     起動: launchctl load $PLIST_DIR/$PLIST_NAME"
     echo "     停止: launchctl unload $PLIST_DIR/$PLIST_NAME"
-    echo ""
-    echo "     ※ kanata は sudo での実行が必要な場合があります。"
-    echo "       その場合は launchd ではなく手動で起動してください:"
-    echo "       sudo kanata_cmd_allowed --cfg \"$INSTALL_DIR/muhenkan-macos.kbd\""
 fi
 
 # ── macOS 固有の注意 ──
@@ -215,8 +212,8 @@ echo "インストール先: $INSTALL_DIR"
 echo ""
 echo "使い方:"
 echo "  1. ターミナルを再起動してください（PATH の反映）"
-echo "  2. 以下のコマンドで起動:"
-echo "     sudo kanata_cmd_allowed --cfg \"$INSTALL_DIR/muhenkan-macos.kbd\""
+echo "  2. muhenkan-switch-gui を起動してください"
+echo "     ※ システムトレイに常駐し、kanata を自動管理します"
 echo ""
 echo "アンインストール: uninstall-macos.sh を実行してください"
 echo ""

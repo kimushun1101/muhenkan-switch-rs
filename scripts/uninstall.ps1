@@ -34,8 +34,19 @@ if ($confirm -ne "y" -and $confirm -ne "Y") {
     exit 0
 }
 
-# ── kanata プロセスを停止 ──
+# ── GUI プロセスを停止 ──
 Write-Host ""
+$guiProcesses = Get-Process -Name "muhenkan-switch-gui" -ErrorAction SilentlyContinue
+if ($guiProcesses) {
+    Write-Host "muhenkan-switch-gui プロセスを停止しています..." -ForegroundColor Yellow
+    $guiProcesses | Stop-Process -Force
+    Start-Sleep -Seconds 1
+    Write-Host "[OK] muhenkan-switch-gui プロセスを停止しました" -ForegroundColor Green
+} else {
+    Write-Host "[SKIP] muhenkan-switch-gui プロセスは実行されていません" -ForegroundColor Yellow
+}
+
+# ── kanata プロセスを停止 ──
 $kanataProcesses = Get-Process -Name "kanata_cmd_allowed" -ErrorAction SilentlyContinue
 if ($kanataProcesses) {
     Write-Host "kanata プロセスを停止しています..." -ForegroundColor Yellow
@@ -48,11 +59,25 @@ if ($kanataProcesses) {
 
 # ── スタートアップショートカット削除 ──
 $startupDir = [Environment]::GetFolderPath("Startup")
-$shortcutPath = Join-Path $startupDir "kanata_cmd_allowed.lnk"
-if (Test-Path $shortcutPath) {
-    Remove-Item $shortcutPath -Force
-    Write-Host "[OK] スタートアップショートカットを削除しました" -ForegroundColor Green
-} else {
+$shortcutDeleted = $false
+
+# 新しい GUI ショートカット
+$guiShortcutPath = Join-Path $startupDir "muhenkan-switch-gui.lnk"
+if (Test-Path $guiShortcutPath) {
+    Remove-Item $guiShortcutPath -Force
+    Write-Host "[OK] スタートアップショートカットを削除しました: muhenkan-switch-gui.lnk" -ForegroundColor Green
+    $shortcutDeleted = $true
+}
+
+# 旧ショートカット（互換性）
+$oldShortcutPath = Join-Path $startupDir "kanata_cmd_allowed.lnk"
+if (Test-Path $oldShortcutPath) {
+    Remove-Item $oldShortcutPath -Force
+    Write-Host "[OK] 旧スタートアップショートカットを削除しました: kanata_cmd_allowed.lnk" -ForegroundColor Green
+    $shortcutDeleted = $true
+}
+
+if (-not $shortcutDeleted) {
     Write-Host "[SKIP] スタートアップショートカットは存在しません" -ForegroundColor Yellow
 }
 

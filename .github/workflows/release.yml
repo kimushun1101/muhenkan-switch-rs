@@ -38,8 +38,17 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
       - name: Build muhenkan-switch
         run: cargo build --release --target ${{ matrix.target }} -p muhenkan-switch
+
+      - name: Build muhenkan-switch-gui
+        run: cargo build --release --target ${{ matrix.target }} -p muhenkan-switch-gui
 
       - name: Package release
         shell: bash
@@ -49,6 +58,13 @@ jobs:
 
           # muhenkan-switch バイナリ
           cp "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "$RELEASE_DIR/"
+
+          # muhenkan-switch-gui バイナリ
+          GUI_NAME="muhenkan-switch-gui"
+          [ "${{ matrix.asset_suffix }}" = "windows-x64" ] && GUI_NAME="muhenkan-switch-gui.exe"
+          if [ -f "target/${{ matrix.target }}/release/$GUI_NAME" ]; then
+            cp "target/${{ matrix.target }}/release/$GUI_NAME" "$RELEASE_DIR/"
+          fi
 
           # 設定ファイル
           cp config/default.toml "$RELEASE_DIR/config.toml"
