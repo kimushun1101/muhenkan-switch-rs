@@ -46,7 +46,7 @@ if (Test-Path $configDest) {
 # ── ファイルコピー ──
 $filesToCopy = @(
     @{ Src = "muhenkan-switch.exe"; Dest = "muhenkan-switch.exe" }
-    @{ Src = "muhenkan-switch-gui.exe"; Dest = "muhenkan-switch-gui.exe" }
+    @{ Src = "muhenkan-switch-core.exe"; Dest = "muhenkan-switch-core.exe" }
     @{ Src = "config.toml";   Dest = "config.toml" }
     @{ Src = "muhenkan.kbd";  Dest = "muhenkan.kbd" }
     @{ Src = "update.ps1";    Dest = "update.ps1" }
@@ -127,8 +127,8 @@ Write-Host ""
 $createStartup = Read-Host "スタートアップに muhenkan-switch (GUI) を登録しますか？ (y/N)"
 if ($createStartup -eq "y" -or $createStartup -eq "Y") {
     $startupDir = [Environment]::GetFolderPath("Startup")
-    $shortcutPath = Join-Path $startupDir "muhenkan-switch-gui.lnk"
-    $guiExe = Join-Path $INSTALL_DIR "muhenkan-switch-gui.exe"
+    $shortcutPath = Join-Path $startupDir "muhenkan-switch.lnk"
+    $guiExe = Join-Path $INSTALL_DIR "muhenkan-switch.exe"
 
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($shortcutPath)
@@ -149,7 +149,7 @@ Write-Host "インストール先: $INSTALL_DIR"
 Write-Host ""
 Write-Host "使い方:"
 Write-Host "  1. ターミナルを再起動してください（PATH の反映）"
-Write-Host "  2. muhenkan-switch-gui.exe を起動してください" -ForegroundColor Cyan
+Write-Host "  2. muhenkan-switch.exe を起動してください" -ForegroundColor Cyan
 Write-Host "     ※ システムトレイに常駐し、kanata を自動管理します"
 Write-Host ""
 Write-Host "アンインストール: uninstall.ps1 を実行してください"

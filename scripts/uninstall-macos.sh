@@ -21,7 +21,7 @@ fi
 
 echo "以下を削除します:"
 echo "  - インストールディレクトリ: $INSTALL_DIR"
-echo "  - シンボリックリンク: $BIN_DIR/muhenkan-switch, $BIN_DIR/muhenkan-switch-gui, $BIN_DIR/kanata_cmd_allowed"
+echo "  - シンボリックリンク: $BIN_DIR/muhenkan-switch, $BIN_DIR/muhenkan-switch-core, $BIN_DIR/kanata_cmd_allowed"
 if [ -f "$PLIST_DIR/$PLIST_NAME" ]; then
     echo "  - launchd エージェント: $PLIST_NAME"
 fi
@@ -37,12 +37,12 @@ if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
 fi
 
 # ── GUI プロセス停止 ──
-if pgrep -x "muhenkan-switch-gui" > /dev/null 2>&1; then
+if pgrep -x "muhenkan-switch" > /dev/null 2>&1; then
     echo ""
-    echo "muhenkan-switch-gui プロセスを停止しています..."
-    pkill -x "muhenkan-switch-gui" 2>/dev/null || true
+    echo "muhenkan-switch プロセスを停止しています..."
+    pkill -x "muhenkan-switch" 2>/dev/null || true
     sleep 1
-    echo "[OK] muhenkan-switch-gui プロセスを停止しました"
+    echo "[OK] muhenkan-switch プロセスを停止しました"
 fi
 
 # ── launchd エージェント停止・削除 ──
@@ -76,6 +76,7 @@ remove_symlink() {
 }
 
 remove_symlink "muhenkan-switch"
+remove_symlink "muhenkan-switch-core"
 remove_symlink "muhenkan-switch-gui"
 remove_symlink "kanata_cmd_allowed"
 

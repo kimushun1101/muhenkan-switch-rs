@@ -81,7 +81,7 @@ copy_file() {
 }
 
 copy_file "muhenkan-switch" "muhenkan-switch"
-copy_file "muhenkan-switch-gui" "muhenkan-switch-gui"
+copy_file "muhenkan-switch-core" "muhenkan-switch-core"
 copy_file "config.toml" "config.toml"
 copy_file "muhenkan-macos.kbd" "muhenkan-macos.kbd"
 copy_file "update-macos.sh" "update-macos.sh"
@@ -89,7 +89,7 @@ copy_file "uninstall-macos.sh" "uninstall-macos.sh"
 
 # 実行権限を付与
 chmod +x "$INSTALL_DIR/muhenkan-switch" 2>/dev/null || true
-chmod +x "$INSTALL_DIR/muhenkan-switch-gui" 2>/dev/null || true
+chmod +x "$INSTALL_DIR/muhenkan-switch-core" 2>/dev/null || true
 
 # ── kanata ダウンロード ──
 kanata_dest="$INSTALL_DIR/kanata_cmd_allowed"
@@ -140,7 +140,7 @@ create_symlink() {
 }
 
 create_symlink "$INSTALL_DIR/muhenkan-switch" "muhenkan-switch"
-create_symlink "$INSTALL_DIR/muhenkan-switch-gui" "muhenkan-switch-gui"
+create_symlink "$INSTALL_DIR/muhenkan-switch-core" "muhenkan-switch-core"
 create_symlink "$INSTALL_DIR/kanata_cmd_allowed" "kanata_cmd_allowed"
 
 # ── PATH チェック ──
@@ -169,7 +169,7 @@ if [ "$install_agent" = "y" ] || [ "$install_agent" = "Y" ]; then
     <string>com.muhenkan-switch-rs.kanata</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$INSTALL_DIR/muhenkan-switch-gui</string>
+        <string>$INSTALL_DIR/muhenkan-switch</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -212,7 +212,7 @@ echo "インストール先: $INSTALL_DIR"
 echo ""
 echo "使い方:"
 echo "  1. ターミナルを再起動してください（PATH の反映）"
-echo "  2. muhenkan-switch-gui を起動してください"
+echo "  2. muhenkan-switch を起動してください"
 echo "     ※ システムトレイに常駐し、kanata を自動管理します"
 echo ""
 echo "アンインストール: uninstall-macos.sh を実行してください"

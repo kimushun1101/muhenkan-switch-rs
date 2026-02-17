@@ -49,7 +49,7 @@ copy_file() {
 }
 
 copy_file "muhenkan-switch" "muhenkan-switch"
-copy_file "muhenkan-switch-gui" "muhenkan-switch-gui"
+copy_file "muhenkan-switch-core" "muhenkan-switch-core"
 copy_file "config.toml" "config.toml"
 copy_file "muhenkan.kbd" "muhenkan.kbd"
 copy_file "update.sh" "update.sh"
@@ -57,7 +57,7 @@ copy_file "uninstall.sh" "uninstall.sh"
 
 # 実行権限を付与
 chmod +x "$INSTALL_DIR/muhenkan-switch" 2>/dev/null || true
-chmod +x "$INSTALL_DIR/muhenkan-switch-gui" 2>/dev/null || true
+chmod +x "$INSTALL_DIR/muhenkan-switch-core" 2>/dev/null || true
 
 # ── kanata ダウンロード ──
 kanata_dest="$INSTALL_DIR/kanata_cmd_allowed"
@@ -124,7 +124,7 @@ create_symlink() {
 }
 
 create_symlink "$INSTALL_DIR/muhenkan-switch" "muhenkan-switch"
-create_symlink "$INSTALL_DIR/muhenkan-switch-gui" "muhenkan-switch-gui"
+create_symlink "$INSTALL_DIR/muhenkan-switch-core" "muhenkan-switch-core"
 create_symlink "$INSTALL_DIR/kanata_cmd_allowed" "kanata_cmd_allowed"
 
 # ── PATH チェック ──
@@ -144,17 +144,17 @@ if [ "$install_autostart" = "y" ] || [ "$install_autostart" = "Y" ]; then
     autostart_dir="$HOME/.config/autostart"
     mkdir -p "$autostart_dir"
 
-    cat > "$autostart_dir/muhenkan-switch-gui.desktop" << EOF
+    cat > "$autostart_dir/muhenkan-switch.desktop" << EOF
 [Desktop Entry]
 Type=Application
 Name=muhenkan-switch
-Exec=$INSTALL_DIR/muhenkan-switch-gui
+Exec=$INSTALL_DIR/muhenkan-switch
 Comment=muhenkan-switch GUI (kanata を自動管理)
 X-GNOME-Autostart-enabled=true
 EOF
 
     echo "[OK] 自動起動を設定しました"
-    echo "     $autostart_dir/muhenkan-switch-gui.desktop"
+    echo "     $autostart_dir/muhenkan-switch.desktop"
 fi
 
 # ── uinput グループ設定の案内 ──
@@ -182,7 +182,7 @@ echo "インストール先: $INSTALL_DIR"
 echo ""
 echo "使い方:"
 echo "  1. ターミナルを再起動してください（PATH の反映）"
-echo "  2. muhenkan-switch-gui を起動してください"
+echo "  2. muhenkan-switch を起動してください"
 echo "     ※ システムトレイに常駐し、kanata を自動管理します"
 echo ""
 echo "アンインストール: uninstall.sh を実行してください"
