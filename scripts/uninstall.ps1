@@ -3,7 +3,7 @@
 .SYNOPSIS
     muhenkan-switch-rs アンインストールスクリプト (Windows)
 .DESCRIPTION
-    kanata プロセスの停止、PATH からの削除、スタートアップショートカット削除、
+    kanata プロセスの停止、スタートメニュー・スタートアップショートカット削除、
     インストールディレクトリの削除を行います。
 #>
 
@@ -24,7 +24,7 @@ if (-not (Test-Path $INSTALL_DIR)) {
 
 Write-Host "以下を削除します:"
 Write-Host "  - インストールディレクトリ: $INSTALL_DIR"
-Write-Host "  - ユーザー PATH からインストールディレクトリを除去"
+Write-Host "  - スタートメニューショートカット（存在する場合）"
 Write-Host "  - スタートアップショートカット（存在する場合）"
 Write-Host ""
 
@@ -57,41 +57,24 @@ if ($kanataProcesses) {
     Write-Host "[SKIP] kanata プロセスは実行されていません" -ForegroundColor Yellow
 }
 
+# ── スタートメニューショートカット削除 ──
+$programsDir = [Environment]::GetFolderPath("Programs")
+$menuShortcutPath = Join-Path $programsDir "muhenkan-switch.lnk"
+if (Test-Path $menuShortcutPath) {
+    Remove-Item $menuShortcutPath -Force
+    Write-Host "[OK] スタートメニューショートカットを削除しました" -ForegroundColor Green
+} else {
+    Write-Host "[SKIP] スタートメニューショートカットは存在しません" -ForegroundColor Yellow
+}
+
 # ── スタートアップショートカット削除 ──
 $startupDir = [Environment]::GetFolderPath("Startup")
-$shortcutDeleted = $false
-
-# GUI ショートカット
 $guiShortcutPath = Join-Path $startupDir "muhenkan-switch.lnk"
 if (Test-Path $guiShortcutPath) {
     Remove-Item $guiShortcutPath -Force
-    Write-Host "[OK] スタートアップショートカットを削除しました: muhenkan-switch.lnk" -ForegroundColor Green
-    $shortcutDeleted = $true
-}
-
-# 旧ショートカット（互換性）
-$oldShortcutPath = Join-Path $startupDir "kanata_cmd_allowed.lnk"
-if (Test-Path $oldShortcutPath) {
-    Remove-Item $oldShortcutPath -Force
-    Write-Host "[OK] 旧スタートアップショートカットを削除しました: kanata_cmd_allowed.lnk" -ForegroundColor Green
-    $shortcutDeleted = $true
-}
-
-if (-not $shortcutDeleted) {
-    Write-Host "[SKIP] スタートアップショートカットは存在しません" -ForegroundColor Yellow
-}
-
-# ── PATH から削除 ──
-$userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-$pathEntries = $userPath -split ";" | Where-Object { $_ -ne "" }
-
-if ($pathEntries -contains $INSTALL_DIR) {
-    $newEntries = $pathEntries | Where-Object { $_ -ne $INSTALL_DIR }
-    $newPath = $newEntries -join ";"
-    [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
-    Write-Host "[OK] ユーザー PATH からインストールディレクトリを削除しました" -ForegroundColor Green
+    Write-Host "[OK] スタートアップショートカットを削除しました" -ForegroundColor Green
 } else {
-    Write-Host "[SKIP] PATH にインストールディレクトリは含まれていません" -ForegroundColor Yellow
+    Write-Host "[SKIP] スタートアップショートカットは存在しません" -ForegroundColor Yellow
 }
 
 # ── インストールディレクトリ削除 ──
@@ -106,6 +89,4 @@ try {
 # ── 完了 ──
 Write-Host ""
 Write-Host "=== アンインストール完了 ===" -ForegroundColor Green
-Write-Host ""
-Write-Host "※ PATH の変更を反映するにはターミナルを再起動してください。"
 Write-Host ""

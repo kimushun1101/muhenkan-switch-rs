@@ -51,6 +51,8 @@ $filesToCopy = @(
     @{ Src = "muhenkan.kbd";  Dest = "muhenkan.kbd" }
     @{ Src = "update.ps1";    Dest = "update.ps1" }
     @{ Src = "uninstall.ps1"; Dest = "uninstall.ps1" }
+    @{ Src = "update.bat";    Dest = "update.bat" }
+    @{ Src = "uninstall.bat"; Dest = "uninstall.bat" }
 )
 
 foreach ($file in $filesToCopy) {
@@ -109,18 +111,28 @@ if (Test-Path $kanataExe) {
     }
 }
 
-# ── PATH に追加 ──
-$userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-$pathEntries = $userPath -split ";" | Where-Object { $_ -ne "" }
-
-if ($pathEntries -contains $INSTALL_DIR) {
-    Write-Host "[SKIP] PATH には既に追加済みです" -ForegroundColor Yellow
-} else {
-    $newPath = ($pathEntries + $INSTALL_DIR) -join ";"
-    [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
-    Write-Host "[OK] ユーザー PATH にインストールディレクトリを追加しました" -ForegroundColor Green
-    Write-Host "     ※ 反映にはターミナルの再起動が必要です" -ForegroundColor Yellow
+# ── kbd ファイルに絶対パスを埋め込む ──
+$kbdDest = Join-Path $INSTALL_DIR "muhenkan.kbd"
+if (Test-Path $kbdDest) {
+    $corePath = (Join-Path $INSTALL_DIR "muhenkan-switch-core.exe") -replace '\\', '/'
+    $content = Get-Content $kbdDest -Raw
+    $content = $content -replace 'muhenkan-switch-core', $corePath
+    Set-Content $kbdDest $content -NoNewline
+    Write-Host "[OK] muhenkan.kbd に絶対パスを埋め込みました" -ForegroundColor Green
 }
+
+# ── スタートメニューショートカット（常時）──
+$programsDir = [Environment]::GetFolderPath("Programs")
+$menuShortcutPath = Join-Path $programsDir "muhenkan-switch.lnk"
+$guiExe = Join-Path $INSTALL_DIR "muhenkan-switch.exe"
+
+$shell = New-Object -ComObject WScript.Shell
+$shortcut = $shell.CreateShortcut($menuShortcutPath)
+$shortcut.TargetPath = $guiExe
+$shortcut.WorkingDirectory = $INSTALL_DIR
+$shortcut.Description = "muhenkan-switch — 無変換キーショートカットツール"
+$shortcut.Save()
+Write-Host "[OK] スタートメニューショートカットを作成しました" -ForegroundColor Green
 
 # ── スタートアップショートカット（オプション）──
 Write-Host ""
@@ -148,9 +160,8 @@ Write-Host ""
 Write-Host "インストール先: $INSTALL_DIR"
 Write-Host ""
 Write-Host "使い方:"
-Write-Host "  1. ターミナルを再起動してください（PATH の反映）"
-Write-Host "  2. muhenkan-switch.exe を起動してください" -ForegroundColor Cyan
-Write-Host "     ※ システムトレイに常駐し、kanata を自動管理します"
+Write-Host "  muhenkan-switch はスタートメニューから起動できます。" -ForegroundColor Cyan
+Write-Host "  ※ システムトレイに常駐し、kanata を自動管理します"
 Write-Host ""
-Write-Host "アンインストール: uninstall.ps1 を実行してください"
+Write-Host "アンインストール: インストール先の uninstall.bat をダブルクリックしてください"
 Write-Host ""
