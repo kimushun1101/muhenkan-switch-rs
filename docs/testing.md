@@ -9,7 +9,7 @@ cargo test --workspace
 ## テストの場所
 
 - `muhenkan-switch-config/src/lib.rs` — config crate 単体テスト (24件)
-- `muhenkan-switch/src/commands/timestamp.rs` — timestamp コマンド単体テスト (11件)
+- `muhenkan-switch-core/src/commands/timestamp.rs` — timestamp コマンド単体テスト (11件)
 
 ## カテゴリ
 
@@ -21,7 +21,7 @@ cargo test --workspace
 - **Save/Load** (`test_roundtrip_*`, `test_save_*`) — ファイル書き出しと復元、ソート順
 - **ヘルパー** (`test_get_*`, `test_app_*`) — ユーティリティ関数
 
-### CLI crate (muhenkan-switch)
+### CLI crate (muhenkan-switch-core)
 
 - **timestamp** (`test_compose_*`, `test_resolve_*`) — タイムスタンプ結合・アクション解決の純粋ロジック
 

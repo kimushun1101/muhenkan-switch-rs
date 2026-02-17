@@ -215,7 +215,6 @@ curl https://mise.jdx.dev/install.sh | sh
 mise run build      # debug ビルド → ルートにコピー
 mise run release    # release ビルド → ルートにコピー
 mise run dev        # debug ビルド後、kanata も起動
-mise run gui        # GUI を起動
 ```
 
 ## ライセンス

@@ -77,7 +77,6 @@ remove_symlink() {
 
 remove_symlink "muhenkan-switch"
 remove_symlink "muhenkan-switch-core"
-remove_symlink "muhenkan-switch-gui"
 remove_symlink "kanata_cmd_allowed"
 
 # ── インストールディレクトリ削除 ──

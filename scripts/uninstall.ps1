@@ -70,14 +70,6 @@ if (Test-Path $guiShortcutPath) {
 }
 
 # 旧ショートカット（互換性）
-$oldGuiShortcutPath = Join-Path $startupDir "muhenkan-switch-gui.lnk"
-if (Test-Path $oldGuiShortcutPath) {
-    Remove-Item $oldGuiShortcutPath -Force
-    Write-Host "[OK] 旧スタートアップショートカットを削除しました: muhenkan-switch-gui.lnk" -ForegroundColor Green
-    $shortcutDeleted = $true
-}
-
-# 旧ショートカット（互換性）
 $oldShortcutPath = Join-Path $startupDir "kanata_cmd_allowed.lnk"
 if (Test-Path $oldShortcutPath) {
     Remove-Item $oldShortcutPath -Force
