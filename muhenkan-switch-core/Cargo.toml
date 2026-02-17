@@ -1,6 +1,6 @@
 [package]
 name = "muhenkan-switch-core"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Companion tool for muhenkan-switch-rs: cross-platform shortcut actions"
 license = "GPL-2.0-only"
