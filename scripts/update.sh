@@ -37,11 +37,11 @@ fi
 
 # ── 現在のバージョンを取得 ──
 current_version="(不明)"
-if command -v muhenkan-switch &>/dev/null; then
-    version_output=$(muhenkan-switch --version 2>/dev/null || true)
+if command -v muhenkan-switch-core &>/dev/null; then
+    version_output=$(muhenkan-switch-core --version 2>/dev/null || true)
     if [ -n "$version_output" ]; then
-        # "muhenkan-switch x.y.z" → "vx.y.z"
-        version_string=$(echo "$version_output" | sed 's/^muhenkan-switch\s*//')
+        # "muhenkan-switch-core x.y.z" → "vx.y.z"
+        version_string=$(echo "$version_output" | sed 's/^muhenkan-switch-core\s*//')
         current_version="v$version_string"
     fi
 fi

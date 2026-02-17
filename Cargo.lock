@@ -2063,14 +2063,18 @@ name = "muhenkan-switch"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "arboard",
  "chrono",
- "clap",
- "dirs 6.0.0",
  "muhenkan-switch-config",
  "open",
- "urlencoding",
- "webbrowser",
+ "serde",
+ "serde_json",
+ "shared_child",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-dialog",
+ "tauri-plugin-shell",
+ "tauri-plugin-store",
  "windows",
 ]
 
@@ -2086,22 +2090,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "muhenkan-switch-gui"
+name = "muhenkan-switch-core"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "arboard",
  "chrono",
+ "clap",
+ "dirs 6.0.0",
  "muhenkan-switch-config",
  "open",
- "serde",
- "serde_json",
- "shared_child",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-dialog",
- "tauri-plugin-shell",
- "tauri-plugin-store",
+ "urlencoding",
+ "webbrowser",
  "windows",
 ]
 

@@ -49,13 +49,15 @@ copy_file() {
 }
 
 copy_file "muhenkan-switch" "muhenkan-switch"
+copy_file "muhenkan-switch-core" "muhenkan-switch-core"
 copy_file "config.toml" "config.toml"
 copy_file "muhenkan.kbd" "muhenkan.kbd"
 copy_file "update.sh" "update.sh"
 copy_file "uninstall.sh" "uninstall.sh"
 
-# muhenkan-switch に実行権限を付与
+# 実行権限を付与
 chmod +x "$INSTALL_DIR/muhenkan-switch" 2>/dev/null || true
+chmod +x "$INSTALL_DIR/muhenkan-switch-core" 2>/dev/null || true
 
 # ── kanata ダウンロード ──
 kanata_dest="$INSTALL_DIR/kanata_cmd_allowed"
@@ -122,6 +124,7 @@ create_symlink() {
 }
 
 create_symlink "$INSTALL_DIR/muhenkan-switch" "muhenkan-switch"
+create_symlink "$INSTALL_DIR/muhenkan-switch-core" "muhenkan-switch-core"
 create_symlink "$INSTALL_DIR/kanata_cmd_allowed" "kanata_cmd_allowed"
 
 # ── PATH チェック ──
@@ -134,31 +137,24 @@ if ! echo "$PATH" | tr ':' '\n' | grep -qx "$BIN_DIR"; then
     echo ""
 fi
 
-# ── systemd サービス（オプション）──
+# ── 自動起動（オプション）──
 echo ""
-read -rp "systemd ユーザーサービスをインストールしますか？ (y/N): " install_service
-if [ "$install_service" = "y" ] || [ "$install_service" = "Y" ]; then
-    service_dir="$HOME/.config/systemd/user"
-    mkdir -p "$service_dir"
+read -rp "自動起動（デスクトップログイン時）を設定しますか？ (y/N): " install_autostart
+if [ "$install_autostart" = "y" ] || [ "$install_autostart" = "Y" ]; then
+    autostart_dir="$HOME/.config/autostart"
+    mkdir -p "$autostart_dir"
 
-    cat > "$service_dir/kanata.service" << EOF
-[Unit]
-Description=Kanata keyboard remapper (muhenkan-switch-rs)
-
-[Service]
-ExecStart=$INSTALL_DIR/kanata_cmd_allowed --cfg $INSTALL_DIR/muhenkan.kbd
-Restart=on-failure
-RestartSec=3
-
-[Install]
-WantedBy=default.target
+    cat > "$autostart_dir/muhenkan-switch.desktop" << EOF
+[Desktop Entry]
+Type=Application
+Name=muhenkan-switch
+Exec=$INSTALL_DIR/muhenkan-switch
+Comment=muhenkan-switch GUI (kanata を自動管理)
+X-GNOME-Autostart-enabled=true
 EOF
 
-    systemctl --user daemon-reload
-    systemctl --user enable kanata.service
-    echo "[OK] systemd サービスをインストールしました"
-    echo "     起動: systemctl --user start kanata.service"
-    echo "     状態: systemctl --user status kanata.service"
+    echo "[OK] 自動起動を設定しました"
+    echo "     $autostart_dir/muhenkan-switch.desktop"
 fi
 
 # ── uinput グループ設定の案内 ──
@@ -186,8 +182,8 @@ echo "インストール先: $INSTALL_DIR"
 echo ""
 echo "使い方:"
 echo "  1. ターミナルを再起動してください（PATH の反映）"
-echo "  2. 以下のコマンドで起動:"
-echo "     kanata_cmd_allowed --cfg $INSTALL_DIR/muhenkan.kbd"
+echo "  2. muhenkan-switch を起動してください"
+echo "     ※ システムトレイに常駐し、kanata を自動管理します"
 echo ""
 echo "アンインストール: uninstall.sh を実行してください"
 echo ""

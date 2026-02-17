@@ -74,7 +74,7 @@ sequenceDiagram
     actor User as ユーザー
     participant GUI as GUI (Tauri v2)
     participant kanata as kanata
-    participant CLI as CLI (muhenkan-switch)
+    participant Core as Core (muhenkan-switch-core)
     participant toml as config.toml
 
     User->>GUI: GUI 起動
@@ -87,9 +87,9 @@ sequenceDiagram
     kanata-->>kanata: 設定再読み込み
 
     Note over kanata: 無変換+キー押下
-    kanata->>CLI: cmd アクションで起動<br/>(muhenkan-switch dispatch <key>)
-    CLI->>toml: 設定読み込み
-    CLI-->>CLI: アクション実行<br/>(検索/アプリ切替/フォルダ等)
+    kanata->>Core: cmd アクションで起動<br/>(muhenkan-switch-core dispatch <key>)
+    Core->>toml: 設定読み込み
+    Core-->>Core: アクション実行<br/>(検索/アプリ切替/フォルダ等)
 ```
 
 ### コンポーネント構成
@@ -97,17 +97,17 @@ sequenceDiagram
 ```mermaid
 graph TB
     subgraph "muhenkan-switch-rs (Cargo workspace)"
-        GUI["<b>muhenkan-switch-gui</b><br/>bin (Tauri v2)<br/>設定画面 / kanata 管理 / トレイ常駐"]
+        GUI["<b>muhenkan-switch</b><br/>bin (Tauri v2)<br/>設定画面 / kanata 管理 / トレイ常駐"]
         kanata["<b>kanata</b><br/>外部バイナリ (.kbd)<br/>Layer 1: キー入力"]
-        CLI["<b>muhenkan-switch</b><br/>bin (CLI)<br/>Layer 2: OS 連携<br/>search / switch-app / open-folder 等"]
+        CLI["<b>muhenkan-switch-core</b><br/>bin (CLI)<br/>Layer 2: OS 連携<br/>search / switch-app / open-folder 等"]
         config["<b>muhenkan-switch-config</b><br/>lib<br/>Layer 3: 設定管理<br/>型定義 / 読み書き / 検証"]
         toml[("config.toml")]
     end
 
     GUI -- "子プロセス起動/停止" --> kanata
-    kanata -- "cmd アクション (プロセス起動)" --> CLI
+    kanata -- "cmd アクション (プロセス起動)" --> Core
     GUI -- "依存" --> config
-    CLI -- "依存" --> config
+    Core -- "依存" --> config
     config <-- "読み書き" --> toml
 ```
 
@@ -117,8 +117,8 @@ graph TB
 
 | クレート | 種別 | 役割 |
 |---------|------|------|
-| `muhenkan-switch-gui` | bin (Tauri) | **ユーザーが直接起動する唯一のアプリ**。config.toml の閲覧・編集 UI を提供し、kanata を子プロセスとして起動・停止・再起動する。システムトレイに常駐 |
-| `muhenkan-switch` | bin | kanata から `cmd` アクションで呼び出される**実行エンジン**。search, switch-app, open-folder, timestamp, screenshot, dispatch サブコマンドを提供。ユーザーが直接起動することはない |
+| `muhenkan-switch` | bin (Tauri) | **ユーザーが直接起動する唯一のアプリ**。config.toml の閲覧・編集 UI を提供し、kanata を子プロセスとして起動・停止・再起動する。システムトレイに常駐 |
+| `muhenkan-switch-core` | bin | kanata から `cmd` アクションで呼び出される**実行エンジン**。search, switch-app, open-folder, timestamp, screenshot, dispatch サブコマンドを提供。ユーザーが直接起動することはない |
 | `muhenkan-switch-config` | lib | 設定の型定義 (`Config`, `AppEntry` 等)、config.toml の読み書き (`load`/`save`)、バリデーション、ディスパッチキー解決。GUI と CLI の**両方から依存される共有ライブラリ** |
 
 **3 つのクレートが独立している理由:**
@@ -131,7 +131,7 @@ graph TB
 ## CLI 仕様
 
 ```
-muhenkan-switch <COMMAND> [OPTIONS]
+muhenkan-switch-core <COMMAND> [OPTIONS]
 
 Commands:
   dispatch     <KEY>              ディスパッチキーに対応するアクションを実行

@@ -83,7 +83,7 @@ irm https://raw.githubusercontent.com/kimushun1101/muhenkan-switch-rs/main/scrip
 - kanata のダウンロード（GitHub Releases から）
 - ファイルの配置（下記インストール先）
 - PATH の設定（Windows: ユーザー環境変数、Linux/macOS: `~/.local/bin` にシンボリックリンク）
-- オプション: 自動起動の設定（Windows: スタートアップ、Linux: systemd、macOS: launchd）
+- オプション: 自動起動の設定（Windows: スタートアップ、Linux: XDG autostart、macOS: launchd）
 
 | OS | インストール先 |
 |----|--------------|
@@ -95,7 +95,8 @@ irm https://raw.githubusercontent.com/kimushun1101/muhenkan-switch-rs/main/scrip
 ```
 <install_dir>/
 ├── kanata_cmd_allowed(.exe)   # kanata 本体（自動ダウンロード）
-├── muhenkan-switch(.exe)       # muhenkan-switch ツール
+├── muhenkan-switch(.exe)       # muhenkan-switch GUI（メインアプリ）
+├── muhenkan-switch-core(.exe)  # muhenkan-switch-core（kanata から呼び出される実行エンジン）
 ├── muhenkan.kbd               # kanata 設定ファイル (macOS: muhenkan-macos.kbd)
 └── config.toml                # muhenkan-switch 設定ファイル
 ```
@@ -106,19 +107,9 @@ PATH の変更を反映するため、ターミナルを再起動してくださ
 
 ### 3. 起動
 
-```bash
-# Windows
-kanata_cmd_allowed.exe --cfg "%LOCALAPPDATA%\muhenkan-switch-rs\muhenkan.kbd"
-
-# Linux
-kanata_cmd_allowed --cfg ~/.local/share/muhenkan-switch-rs/muhenkan.kbd
-
-# macOS (sudo が必要)
-sudo kanata_cmd_allowed --cfg ~/Library/Application\ Support/muhenkan-switch-rs/muhenkan-macos.kbd
-```
+`muhenkan-switch` を起動してください。システムトレイに常駐し、kanata を自動管理します。
 
 無変換キーを押しながら H/J/K/L でカーソルが移動すれば成功です。
-`Ctrl+Space+Esc` で kanata を終了できます。
 
 #### Linux の追加設定
 
@@ -154,7 +145,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 手動で削除する場合は、以下を削除してください:
 - インストールディレクトリ（上記表を参照）
 - PATH からインストールディレクトリを除去（Windows のみ）
-- 自動起動設定（Windows: スタートアップショートカット、Linux: systemd サービス、macOS: launchd エージェント）
+- 自動起動設定（Windows: スタートアップショートカット、Linux: XDG autostart、macOS: launchd エージェント）
 
 ### 更新
 
@@ -224,7 +215,6 @@ curl https://mise.jdx.dev/install.sh | sh
 mise run build      # debug ビルド → ルートにコピー
 mise run release    # release ビルド → ルートにコピー
 mise run dev        # debug ビルド後、kanata も起動
-mise run gui        # GUI を起動
 ```
 
 ## ライセンス

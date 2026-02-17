@@ -14,19 +14,23 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: muhenkan-switch
+            core_artifact: muhenkan-switch-core
+            gui_artifact: muhenkan-switch
             asset_suffix: linux-x64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: muhenkan-switch.exe
+            core_artifact: muhenkan-switch-core.exe
+            gui_artifact: muhenkan-switch.exe
             asset_suffix: windows-x64
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: muhenkan-switch
+            core_artifact: muhenkan-switch-core
+            gui_artifact: muhenkan-switch
             asset_suffix: macos-x64
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: muhenkan-switch
+            core_artifact: muhenkan-switch-core
+            gui_artifact: muhenkan-switch
             asset_suffix: macos-arm64
 
     runs-on: ${{ matrix.os }}
@@ -38,7 +42,16 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Build muhenkan-switch
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Build muhenkan-switch-core
+        run: cargo build --release --target ${{ matrix.target }} -p muhenkan-switch-core
+
+      - name: Build muhenkan-switch (GUI)
         run: cargo build --release --target ${{ matrix.target }} -p muhenkan-switch
 
       - name: Package release
@@ -47,8 +60,13 @@ jobs:
           RELEASE_DIR="muhenkan-switch-rs-${{ matrix.asset_suffix }}"
           mkdir -p "$RELEASE_DIR"
 
-          # muhenkan-switch バイナリ
-          cp "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "$RELEASE_DIR/"
+          # muhenkan-switch-core バイナリ
+          cp "target/${{ matrix.target }}/release/${{ matrix.core_artifact }}" "$RELEASE_DIR/"
+
+          # muhenkan-switch (GUI) バイナリ
+          if [ -f "target/${{ matrix.target }}/release/${{ matrix.gui_artifact }}" ]; then
+            cp "target/${{ matrix.target }}/release/${{ matrix.gui_artifact }}" "$RELEASE_DIR/"
+          fi
 
           # 設定ファイル
           cp config/default.toml "$RELEASE_DIR/config.toml"

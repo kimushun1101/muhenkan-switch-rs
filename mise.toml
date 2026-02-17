@@ -15,11 +15,11 @@ shell = "bash -c"
 run = """
 cargo build --workspace
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
-cp "target/debug/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
-echo "[dev] Copied -> ./muhenkan-switch${EXT}"
-if [ -f "target/debug/muhenkan-switch-gui${EXT}" ]; then
-  cp "target/debug/muhenkan-switch-gui${EXT}" "./muhenkan-switch-gui${EXT}"
-  echo "[dev] Copied -> ./muhenkan-switch-gui${EXT}"
+cp "target/debug/muhenkan-switch-core${EXT}" "./muhenkan-switch-core${EXT}"
+echo "[dev] Copied -> ./muhenkan-switch-core${EXT}"
+if [ -f "target/debug/muhenkan-switch${EXT}" ]; then
+  cp "target/debug/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
+  echo "[dev] Copied -> ./muhenkan-switch${EXT}"
 fi
 """
 
@@ -29,11 +29,11 @@ shell = "bash -c"
 run = """
 cargo build --workspace --release
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
-cp "target/release/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
-echo "[dev] Copied -> ./muhenkan-switch${EXT}"
-if [ -f "target/release/muhenkan-switch-gui${EXT}" ]; then
-  cp "target/release/muhenkan-switch-gui${EXT}" "./muhenkan-switch-gui${EXT}"
-  echo "[dev] Copied -> ./muhenkan-switch-gui${EXT}"
+cp "target/release/muhenkan-switch-core${EXT}" "./muhenkan-switch-core${EXT}"
+echo "[dev] Copied -> ./muhenkan-switch-core${EXT}"
+if [ -f "target/release/muhenkan-switch${EXT}" ]; then
+  cp "target/release/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
+  echo "[dev] Copied -> ./muhenkan-switch${EXT}"
 fi
 """
 
@@ -43,7 +43,7 @@ depends = ["build"]
 shell = "bash -c"
 run = """
 echo "[dev] Starting GUI..."
-cargo run -p muhenkan-switch-gui
+cargo run -p muhenkan-switch
 """
 
 [tasks.test]
