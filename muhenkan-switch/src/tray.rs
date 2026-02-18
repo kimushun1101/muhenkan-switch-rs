@@ -34,7 +34,7 @@ fn build_tray(handle: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         .build(handle)?;
     let sep2 = PredefinedMenuItem::separator(handle)?;
     let autostart_item =
-        CheckMenuItemBuilder::with_id("autostart", "Windows 起動時に自動起動")
+        CheckMenuItemBuilder::with_id("autostart", "ログイン時に自動起動")
             .build(handle)?;
     let sep3 = PredefinedMenuItem::separator(handle)?;
     let quit_item = MenuItemBuilder::with_id("quit", "終了").build(handle)?;
