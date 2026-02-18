@@ -89,83 +89,77 @@ fi
 
 [tasks.fetch-kanata]
 description = "Download kanata binary for development"
-shell = "bash -c"
 run = """
-KANATA_VERSION="v1.11.0"
-EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
-DEST="./kanata_cmd_allowed${EXT}"
+#!/usr/bin/env python
+import os, sys, platform, zipfile, urllib.request, shutil
 
-if [ -f "$DEST" ]; then
-  echo "[fetch-kanata] kanata_cmd_allowed already exists — skipping."
-  exit 0
-fi
+VERSION = "v1.11.0"
+ext = ".exe" if os.name == "nt" else ""
+dest = f"./kanata_cmd_allowed{ext}"
 
-OS_NAME=$(uname -s)
-ARCH=$(uname -m)
+if os.path.exists(dest):
+    print("[fetch-kanata] kanata_cmd_allowed already exists — skipping.")
+    sys.exit(0)
 
-case "$OS_NAME" in
-  Linux)
-    ASSET="linux-binaries-x64.zip"
-    BINARY="kanata_linux_cmd_allowed_x64"
-    ;;
-  Darwin)
-    case "$ARCH" in
-      arm64) ASSET="macos-binaries-arm64.zip"; BINARY="kanata_macos_cmd_allowed_arm64" ;;
-      *)     ASSET="macos-binaries-x64.zip";   BINARY="kanata_macos_cmd_allowed_x64" ;;
-    esac
-    ;;
-  MINGW*|MSYS*)
-    ASSET="windows-binaries-x64.zip"
-    BINARY="kanata_windows_gui_winIOv2_cmd_allowed_x64.exe"
-    ;;
-  *)
-    echo "[fetch-kanata] Unsupported OS: $OS_NAME"
-    echo "  Download manually from https://github.com/jtroo/kanata/releases"
-    exit 1
-    ;;
-esac
+system = platform.system()
+machine = platform.machine()
 
-# 1. プリビルドバイナリをダウンロード
-URL="https://github.com/jtroo/kanata/releases/download/$KANATA_VERSION/$ASSET"
-TMPDIR=$(mktemp -d)
-echo "[fetch-kanata] Downloading kanata $KANATA_VERSION ($ASSET)..."
+if system == "Linux":
+    asset = "linux-binaries-x64.zip"
+    binary = "kanata_linux_cmd_allowed_x64"
+elif system == "Darwin":
+    if machine == "arm64":
+        asset = "macos-binaries-arm64.zip"
+        binary = "kanata_macos_cmd_allowed_arm64"
+    else:
+        asset = "macos-binaries-x64.zip"
+        binary = "kanata_macos_cmd_allowed_x64"
+elif system == "Windows":
+    asset = "windows-binaries-x64.zip"
+    binary = "kanata_windows_tty_winIOv2_cmd_allowed_x64.exe"
+else:
+    print(f"[fetch-kanata] Unsupported OS: {system}")
+    sys.exit(1)
 
-curl -fSL -o "$TMPDIR/kanata.zip" "$URL"
-unzip -q -o "$TMPDIR/kanata.zip" -d "$TMPDIR/extract"
+url = f"https://github.com/jtroo/kanata/releases/download/{VERSION}/{asset}"
+dldir = ".tmp-kanata-dl"
+os.makedirs(dldir, exist_ok=True)
+zippath = os.path.join(dldir, "kanata.zip")
 
-FOUND=$(find "$TMPDIR/extract" -name "$BINARY" -type f | head -1)
-if [ -n "$FOUND" ]; then
-  cp "$FOUND" "$DEST"
-  chmod +x "$DEST"
-fi
-rm -rf "$TMPDIR"
+print(f"[fetch-kanata] Downloading kanata {VERSION} ({asset})...")
+urllib.request.urlretrieve(url, zippath)
 
-if [ ! -f "$DEST" ]; then
-  echo "[fetch-kanata] ERROR: Binary not found in archive."
-  echo "  Download manually from https://github.com/jtroo/kanata/releases"
-  exit 1
-fi
+with zipfile.ZipFile(zippath) as z:
+    z.extract(binary, dldir)
 
-# 2. GLIBC 互換性チェック（Linux のみ）— 失敗ならソースからビルド
-case "$OS_NAME" in
-  Linux)
-    if ! "$DEST" --version >/dev/null 2>&1; then
-      rm -f "$DEST"
-      echo "[fetch-kanata] Prebuilt binary incompatible (likely GLIBC mismatch)."
-      echo "[fetch-kanata] Building kanata from source (this may take a few minutes)..."
-      cargo install kanata --version "${KANATA_VERSION#v}" --features cmd --root ./tmp-kanata-install
-      cp "./tmp-kanata-install/bin/kanata${EXT}" "$DEST"
-      chmod +x "$DEST"
-      rm -rf ./tmp-kanata-install
-      echo "[fetch-kanata] Done -> $DEST (built from source)"
-    else
-      echo "[fetch-kanata] Done -> $DEST (prebuilt)"
-    fi
-    ;;
-  *)
-    echo "[fetch-kanata] Done -> $DEST (prebuilt)"
-    ;;
-esac
+src = os.path.join(dldir, binary)
+if os.path.exists(src):
+    shutil.copy2(src, dest)
+    if os.name != "nt":
+        os.chmod(dest, 0o755)
+
+shutil.rmtree(dldir, ignore_errors=True)
+
+if not os.path.exists(dest):
+    print("[fetch-kanata] ERROR: Binary not found in archive.")
+    sys.exit(1)
+
+# GLIBC check (Linux only)
+if system == "Linux":
+    import subprocess
+    r = subprocess.run([dest, "--version"], capture_output=True)
+    if r.returncode != 0:
+        os.remove(dest)
+        print("[fetch-kanata] Prebuilt binary incompatible (likely GLIBC mismatch).")
+        print("[fetch-kanata] Building kanata from source...")
+        subprocess.run(["cargo", "install", "kanata", "--version", VERSION.lstrip("v"), "--features", "cmd", "--root", "./tmp-kanata-install"], check=True)
+        shutil.copy2(f"./tmp-kanata-install/bin/kanata{ext}", dest)
+        shutil.rmtree("./tmp-kanata-install", ignore_errors=True)
+        print(f"[fetch-kanata] Done -> {dest} (built from source)")
+    else:
+        print(f"[fetch-kanata] Done -> {dest} (prebuilt)")
+else:
+    print(f"[fetch-kanata] Done -> {dest} (prebuilt)")
 """
 
 [tasks.build]
