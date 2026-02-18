@@ -1,7 +1,9 @@
-//! Lightweight Win32 toast notification for Explorer file operations.
+//! Lightweight toast notification for file operations.
 //!
 //! Shows an immediate "processing" message, then updates with the result
 //! and auto-dismisses after 1.5 seconds.
+
+// ── Platform: Windows ──
 
 #[cfg(target_os = "windows")]
 mod imp {
@@ -203,6 +205,8 @@ mod imp {
     }
 }
 
+// ── Platform: Linux ──
+
 #[cfg(target_os = "linux")]
 mod imp {
     use std::process::Command;
@@ -229,8 +233,12 @@ mod imp {
     }
 }
 
+// ── Platform: macOS ──
+
 #[cfg(target_os = "macos")]
 mod imp {
+    /// macOS: トースト通知は未実装 (no-op)。
+    /// osascript の `display notification` や terminal-notifier で実装可能。
     pub struct Toast;
 
     impl Toast {
@@ -243,6 +251,8 @@ mod imp {
 }
 
 pub use imp::Toast;
+
+// ── Tests ──
 
 #[cfg(test)]
 mod tests {

@@ -5,6 +5,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 
+// ── Platform: Windows (Job Object) ──
+
 /// Windows Job Object: GUI 終了時に子プロセス (kanata) を自動終了させる。
 /// JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE により、ハンドルが閉じられると
 /// 紐付けた全プロセスが OS によって強制終了される。
@@ -65,6 +67,85 @@ mod job_object {
     }
 }
 
+// ── Platform: Linux (uinput support) ──
+
+#[cfg(target_os = "linux")]
+mod linux_support {
+    use anyhow::{Context, Result};
+
+    /// Wayland セッション判定
+    pub fn is_wayland_session() -> bool {
+        std::env::var("WAYLAND_DISPLAY").is_ok()
+            || std::env::var("XDG_SESSION_TYPE")
+                .map(|v| v == "wayland")
+                .unwrap_or(false)
+    }
+
+    /// pkexec で uinput パーミッションを自動設定する
+    pub fn setup_uinput_with_pkexec() -> Result<()> {
+        let user = std::env::var("USER").unwrap_or_default();
+        let script = format!(
+            r#"
+groupadd -f uinput
+usermod -aG input {user}
+usermod -aG uinput {user}
+echo 'KERNEL=="uinput", MODE="0660", GROUP="uinput", OPTIONS+="static_node=uinput"' \
+  > /etc/udev/rules.d/99-uinput.rules
+udevadm control --reload-rules && udevadm trigger
+"#
+        );
+
+        let status = std::process::Command::new("pkexec")
+            .arg("bash")
+            .arg("-c")
+            .arg(&script)
+            .status()
+            .context("pkexec の実行に失敗しました")?;
+
+        if status.success() {
+            Ok(())
+        } else {
+            anyhow::bail!("設定がキャンセルされました")
+        }
+    }
+
+    /// uinput パーミッション未設定の案内を stderr に表示
+    pub fn print_uinput_guide() {
+        use std::fs::OpenOptions;
+        if OpenOptions::new()
+            .write(true)
+            .open("/dev/uinput")
+            .is_ok()
+        {
+            return;
+        }
+        eprintln!();
+        eprintln!("[kanata] uinput デバイスにアクセスできません。");
+        eprintln!("[kanata] GUI からシステム設定ダイアログが表示されます。");
+        eprintln!();
+    }
+}
+
+// ── KanataManager ──
+
+/// kanata バイナリ名
+const fn kanata_binary_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "kanata_cmd_allowed.exe"
+    } else {
+        "kanata_cmd_allowed"
+    }
+}
+
+/// muhenkan-switch-core バイナリ名
+const fn core_binary_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "muhenkan-switch-core.exe"
+    } else {
+        "muhenkan-switch-core"
+    }
+}
+
 pub struct KanataManager {
     child: Arc<Mutex<Option<Arc<SharedChild>>>>,
     #[cfg(target_os = "windows")]
@@ -87,10 +168,7 @@ impl KanataManager {
     /// 2. カレントディレクトリ（開発環境: mise run gui 時）
     /// 3. ワークスペースルート（開発環境: CARGO_MANIFEST_DIR の親）
     fn kanata_path() -> Result<PathBuf> {
-        #[cfg(target_os = "windows")]
-        let name = "kanata_cmd_allowed.exe";
-        #[cfg(not(target_os = "windows"))]
-        let name = "kanata_cmd_allowed";
+        let name = kanata_binary_name();
 
         // 1. exe と同じディレクトリ
         if let Ok(exe_dir) = std::env::current_exe().map(|p| p.parent().unwrap().to_path_buf()) {
@@ -174,10 +252,7 @@ impl KanataManager {
     /// 3. ワークスペースルートの bin/（開発環境）
     /// 4. target/debug/（開発環境: cargo build 直後）
     fn core_binary_dir() -> Result<PathBuf> {
-        #[cfg(target_os = "windows")]
-        let name = "muhenkan-switch-core.exe";
-        #[cfg(not(target_os = "windows"))]
-        let name = "muhenkan-switch-core";
+        let name = core_binary_name();
 
         // 1. exe と同じディレクトリ
         if let Ok(exe_dir) = std::env::current_exe().map(|p| p.parent().unwrap().to_path_buf()) {
@@ -263,7 +338,7 @@ impl KanataManager {
         std::thread::sleep(Duration::from_millis(500));
         if let Ok(Some(_status)) = child.try_wait() {
             #[cfg(target_os = "linux")]
-            Self::print_uinput_guide();
+            linux_support::print_uinput_guide();
 
             anyhow::bail!("kanata が起動直後に終了しました (pid: {pid})");
         }
@@ -305,61 +380,6 @@ impl KanataManager {
             None => (false, None),
         }
     }
-
-    /// Linux: uinput パーミッション未設定の案内を stderr に表示
-    #[cfg(target_os = "linux")]
-    fn print_uinput_guide() {
-        use std::fs::OpenOptions;
-        if OpenOptions::new()
-            .write(true)
-            .open("/dev/uinput")
-            .is_ok()
-        {
-            return;
-        }
-        eprintln!();
-        eprintln!("[kanata] uinput デバイスにアクセスできません。");
-        eprintln!("[kanata] GUI からシステム設定ダイアログが表示されます。");
-        eprintln!();
-    }
-}
-
-/// Linux: Wayland セッション判定
-#[cfg(target_os = "linux")]
-fn is_wayland_session() -> bool {
-    std::env::var("WAYLAND_DISPLAY").is_ok()
-        || std::env::var("XDG_SESSION_TYPE")
-            .map(|v| v == "wayland")
-            .unwrap_or(false)
-}
-
-/// Linux: pkexec で uinput パーミッションを自動設定する
-#[cfg(target_os = "linux")]
-fn setup_uinput_with_pkexec() -> Result<()> {
-    let user = std::env::var("USER").unwrap_or_default();
-    let script = format!(
-        r#"
-groupadd -f uinput
-usermod -aG input {user}
-usermod -aG uinput {user}
-echo 'KERNEL=="uinput", MODE="0660", GROUP="uinput", OPTIONS+="static_node=uinput"' \
-  > /etc/udev/rules.d/99-uinput.rules
-udevadm control --reload-rules && udevadm trigger
-"#
-    );
-
-    let status = std::process::Command::new("pkexec")
-        .arg("bash")
-        .arg("-c")
-        .arg(&script)
-        .status()
-        .context("pkexec の実行に失敗しました")?;
-
-    if status.success() {
-        Ok(())
-    } else {
-        anyhow::bail!("設定がキャンセルされました")
-    }
 }
 
 /// アプリ起動時のセットアップ（kanata 自動開始 + 状態監視スレッド起動）
@@ -383,7 +403,7 @@ pub fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // Wayland 警告ダイアログ（イベントループ開始後に表示）
     #[cfg(target_os = "linux")]
     {
-        if is_wayland_session() {
+        if linux_support::is_wayland_session() {
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_secs(2));
@@ -439,7 +459,8 @@ pub fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // pkexec で設定実行
-            match setup_uinput_with_pkexec() {
+            #[cfg(target_os = "linux")]
+            match linux_support::setup_uinput_with_pkexec() {
                 Ok(()) => {
                     handle
                         .dialog()

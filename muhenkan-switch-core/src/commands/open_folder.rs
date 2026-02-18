@@ -26,7 +26,7 @@ pub fn run(target: &str, config: &Config) -> Result<()> {
 fn open_platform_default(target: &str) -> Result<()> {
     match target {
         "trash" => {
-            let path = resolve_trash_path()?;
+            let path = imp::resolve_trash_path()?;
             open::that(&path)?;
             Ok(())
         }
@@ -34,50 +34,6 @@ fn open_platform_default(target: &str) -> Result<()> {
             "Folder '{}' is not configured in config.toml (empty value)",
             target
         ),
-    }
-}
-
-/// OS ごとのゴミ箱パスを解決する。パスが存在しない場合はエラー。
-fn resolve_trash_path() -> Result<PathBuf> {
-    #[cfg(target_os = "linux")]
-    {
-        // FreeDesktop Trash Spec: ~/.local/share/Trash/files
-        if let Some(data_local) = dirs::data_local_dir() {
-            let trash = data_local.join("Trash").join("files");
-            if trash.exists() {
-                return Ok(trash);
-            }
-        }
-        anyhow::bail!("Trash folder not found. Set [folders] trash path in config.toml")
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        if let Some(home) = dirs::home_dir() {
-            let trash = home.join(".Trash");
-            if trash.exists() {
-                return Ok(trash);
-            }
-        }
-        anyhow::bail!("Trash folder not found. Set [folders] trash path in config.toml")
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        // Windows: shell:RecycleBinFolder を explorer.exe で開く
-        // open::that では開けないため、直接 explorer を起動
-        use std::process::Command;
-        Command::new("explorer.exe")
-            .arg("shell:RecycleBinFolder")
-            .spawn()?;
-        // ダミーパスを返す（呼び出し元では使われない）
-        // TODO: open::that("shell:RecycleBinFolder") が動くか検証
-        anyhow::bail!("Opened via explorer.exe")
-    }
-
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-    {
-        anyhow::bail!("Trash folder is not supported on this platform. Set [folders] trash path in config.toml")
     }
 }
 
@@ -94,6 +50,65 @@ fn expand_home(path_str: &str) -> PathBuf {
     }
     PathBuf::from(path_str)
 }
+
+// ── Platform: Windows ──
+
+#[cfg(target_os = "windows")]
+mod imp {
+    use anyhow::Result;
+    use std::path::PathBuf;
+
+    pub(super) fn resolve_trash_path() -> Result<PathBuf> {
+        // Windows: shell:RecycleBinFolder を explorer.exe で開く
+        // open::that では開けないため、直接 explorer を起動
+        use std::process::Command;
+        Command::new("explorer.exe")
+            .arg("shell:RecycleBinFolder")
+            .spawn()?;
+        // ダミーパスを返す（呼び出し元では使われない）
+        // TODO: open::that("shell:RecycleBinFolder") が動くか検証
+        anyhow::bail!("Opened via explorer.exe")
+    }
+}
+
+// ── Platform: Linux ──
+
+#[cfg(target_os = "linux")]
+mod imp {
+    use anyhow::Result;
+    use std::path::PathBuf;
+
+    pub(super) fn resolve_trash_path() -> Result<PathBuf> {
+        // FreeDesktop Trash Spec: ~/.local/share/Trash/files
+        if let Some(data_local) = dirs::data_local_dir() {
+            let trash = data_local.join("Trash").join("files");
+            if trash.exists() {
+                return Ok(trash);
+            }
+        }
+        anyhow::bail!("Trash folder not found. Set [folders] trash path in config.toml")
+    }
+}
+
+// ── Platform: macOS ──
+
+#[cfg(target_os = "macos")]
+mod imp {
+    use anyhow::Result;
+    use std::path::PathBuf;
+
+    pub(super) fn resolve_trash_path() -> Result<PathBuf> {
+        if let Some(home) = dirs::home_dir() {
+            let trash = home.join(".Trash");
+            if trash.exists() {
+                return Ok(trash);
+            }
+        }
+        anyhow::bail!("Trash folder not found. Set [folders] trash path in config.toml")
+    }
+}
+
+// ── Tests ──
 
 #[cfg(test)]
 mod tests {
@@ -140,7 +155,7 @@ mod tests {
     #[test]
     fn resolve_trash_path_returns_freedesktop_path() {
         // Ubuntu にはゴミ箱フォルダがあるはず
-        match resolve_trash_path() {
+        match imp::resolve_trash_path() {
             Ok(path) => {
                 assert!(path.exists());
                 assert!(
