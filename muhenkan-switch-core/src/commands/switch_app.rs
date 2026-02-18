@@ -149,29 +149,164 @@ fn activate_window(app: &str, launch: Option<&str>) -> Result<()> {
 
 #[cfg(target_os = "linux")]
 fn activate_window(app: &str, launch: Option<&str>) -> Result<()> {
-    // wmctrl でウィンドウをアクティブ化
-    let result = Command::new("wmctrl").args(["-a", app]).output();
+    if is_wayland() {
+        activate_window_wayland(app, launch)
+    } else {
+        activate_window_x11(app, launch)
+    }
+}
 
-    let activated = match result {
-        Ok(output) if output.status.success() => true,
-        _ => {
-            // wmctrl がない場合は xdotool を試行
-            let output = Command::new("xdotool")
-                .args(["search", "--name", app, "windowactivate"])
-                .output()?;
-            output.status.success()
-        }
-    };
+/// Wayland セッション判定
+#[cfg(target_os = "linux")]
+fn is_wayland() -> bool {
+    std::env::var("WAYLAND_DISPLAY").is_ok()
+        || std::env::var("XDG_SESSION_TYPE")
+            .map(|v| v == "wayland")
+            .unwrap_or(false)
+}
+
+/// Wayland 環境でのウィンドウアクティブ化
+/// GNOME Shell の Eval API は制限されているため、以下の順で試行:
+/// 1. xdotool (XWayland 経由で動く場合がある)
+/// 2. wmctrl -x (XWayland 経由)
+/// 3. アプリを起動（既存インスタンスがあれば D-Bus 経由でフォーカスされるアプリもある）
+#[cfg(target_os = "linux")]
+fn activate_window_wayland(app: &str, launch: Option<&str>) -> Result<()> {
+    // XWayland 経由で動く可能性があるので X11 ツールを試す
+    let activated = try_wmctrl(app)
+        || try_xdotool(app, "--class")
+        || try_xdotool(app, "--name");
 
     if !activated {
+        eprintln!(
+            "Warning: Wayland ではウィンドウのアクティブ化ができません。\
+             X11 セッション（「Ubuntu on Xorg」）への切り替えを推奨します。"
+        );
         if let Some(cmd) = launch {
-            Command::new("sh")
-                .args(["-c", cmd])
-                .spawn()?;
+            if let Err(e) = Command::new("sh").args(["-c", cmd]).spawn() {
+                eprintln!("Warning: failed to launch '{}': {}", cmd, e);
+            }
         }
     }
 
     Ok(())
+}
+
+/// X11 環境でのウィンドウアクティブ化
+/// 1. wmctrl -x -a (WM_CLASS でマッチ — タイトルより安定)
+/// 2. xdotool search --class (WM_CLASS でマッチ)
+/// 3. xdotool search --name (ウィンドウタイトルでマッチ)
+#[cfg(target_os = "linux")]
+fn activate_window_x11(app: &str, launch: Option<&str>) -> Result<()> {
+    let activated = try_wmctrl(app)
+        || try_xdotool(app, "--class")
+        || try_xdotool(app, "--name");
+
+    if !activated {
+        if let Some(cmd) = launch {
+            if let Err(e) = Command::new("sh").args(["-c", cmd]).spawn() {
+                eprintln!("Warning: failed to launch '{}': {}", cmd, e);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn try_wmctrl(app: &str) -> bool {
+    // -x: WM_CLASS でマッチ（ウィンドウタイトルより安定）
+    Command::new("wmctrl")
+        .args(["-x", "-a", app])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "linux")]
+fn try_xdotool(app: &str, search_flag: &str) -> bool {
+    // --onlyvisible: 不可視の内部ウィンドウを除外（これがないと GNOME で失敗する）
+    let result = Command::new("xdotool")
+        .args(["search", "--onlyvisible", search_flag, app])
+        .output();
+    match result {
+        Ok(output) if output.status.success() => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if let Some(wid) = stdout.lines().next() {
+                Command::new("xdotool")
+                    .args(["windowactivate", "--sync", wid])
+                    .output()
+                    .map(|o| o.status.success())
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn try_wmctrl_nonexistent_app_returns_false() {
+        // 存在しないアプリ名で wmctrl を試行 → false（パニックしない）
+        assert!(!try_wmctrl("__nonexistent_app_muhenkan_test_99999__"));
+    }
+
+    #[test]
+    fn try_xdotool_class_nonexistent_returns_false() {
+        assert!(!try_xdotool(
+            "__nonexistent_app_muhenkan_test_99999__",
+            "--class"
+        ));
+    }
+
+    #[test]
+    fn try_xdotool_name_nonexistent_returns_false() {
+        assert!(!try_xdotool(
+            "__nonexistent_app_muhenkan_test_99999__",
+            "--name"
+        ));
+    }
+
+    #[test]
+    fn activate_window_nonexistent_no_launch_returns_ok() {
+        // 存在しないアプリ、launch なし → エラーにならず Ok
+        let result = activate_window("__nonexistent_app_muhenkan_test_99999__", None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn activate_window_nonexistent_with_bad_launch_returns_ok() {
+        // launch コマンドが失敗しても eprintln で警告のみ、Ok を返す
+        let result = activate_window(
+            "__nonexistent_app_muhenkan_test_99999__",
+            Some("/bin/__nonexistent_command_99999__"),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn is_wayland_returns_bool() {
+        // Wayland 判定がパニックしないことを確認（結果は環境依存）
+        let _ = is_wayland();
+    }
+
+    #[test]
+    fn run_missing_app_errors() {
+        let config = Config {
+            search: Default::default(),
+            folders: Default::default(),
+            apps: Default::default(),
+            timestamp: Default::default(),
+        };
+        let result = run("nonexistent", &config);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not defined"));
+    }
 }
 
 #[cfg(target_os = "macos")]

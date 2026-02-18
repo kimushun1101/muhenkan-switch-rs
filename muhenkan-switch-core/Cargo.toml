@@ -21,6 +21,9 @@ urlencoding = "2"
 anyhow = "1"
 dirs = "6"
 
+[dev-dependencies]
+indexmap = "2"
+
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [
     "Win32_System_Com",

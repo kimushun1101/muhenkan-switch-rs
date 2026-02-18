@@ -203,7 +203,33 @@ mod imp {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
+mod imp {
+    use std::process::Command;
+
+    pub struct Toast;
+
+    impl Toast {
+        pub fn show(initial_message: &str) -> Self {
+            let _ = Command::new("notify-send")
+                .args([
+                    "--app-name=muhenkan-switch",
+                    "muhenkan-switch",
+                    initial_message,
+                ])
+                .spawn();
+            Toast
+        }
+
+        pub fn finish(self, message: &str) {
+            let _ = Command::new("notify-send")
+                .args(["--app-name=muhenkan-switch", "muhenkan-switch", message])
+                .spawn();
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
 mod imp {
     pub struct Toast;
 
@@ -217,3 +243,27 @@ mod imp {
 }
 
 pub use imp::Toast;
+
+#[cfg(test)]
+mod tests {
+    use super::Toast;
+
+    #[test]
+    fn toast_show_and_finish_does_not_panic() {
+        // notify-send がなくてもパニックしないことを確認
+        let toast = Toast::show("test message");
+        toast.finish("done");
+    }
+
+    #[test]
+    fn toast_show_with_empty_message() {
+        let toast = Toast::show("");
+        toast.finish("");
+    }
+
+    #[test]
+    fn toast_show_with_japanese_message() {
+        let toast = Toast::show("処理中...");
+        toast.finish("完了しました");
+    }
+}

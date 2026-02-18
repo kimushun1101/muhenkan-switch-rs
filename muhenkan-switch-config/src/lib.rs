@@ -155,11 +155,12 @@ fn default_delimiter() -> String {
 
 /// config.toml のパスを決定する。
 /// 優先順位:
-/// 1. 実行ファイルと同じディレクトリの config.toml
+/// 1. 実行ファイルと同じディレクトリの config.toml（インストール環境）
 /// 2. カレントディレクトリの config.toml
-/// 3. 見つからなければ None
+/// 3. ワークスペースルートの config/default.toml（開発環境）
+/// 4. 見つからなければ None
 pub fn config_path() -> Option<PathBuf> {
-    // 実行ファイルと同じディレクトリ
+    // 1. 実行ファイルと同じディレクトリ
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(dir) = exe_path.parent() {
             let path = dir.join("config.toml");
@@ -169,10 +170,21 @@ pub fn config_path() -> Option<PathBuf> {
         }
     }
 
-    // カレントディレクトリ
+    // 2. カレントディレクトリ
     let path = PathBuf::from("config.toml");
     if path.exists() {
         return Some(path);
+    }
+
+    // 3. ワークスペースルートの config/default.toml（開発環境）
+    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .map(|p| p.to_path_buf());
+    if let Some(ref root) = workspace_root {
+        let path = root.join("config").join("default.toml");
+        if path.exists() {
+            return Some(path);
+        }
     }
 
     None
@@ -199,7 +211,30 @@ pub fn load() -> Result<Config> {
 }
 
 /// デフォルト設定を返す。
+/// config/default.toml が存在すればそれを使い、なければ最小限のフォールバック。
 pub fn default_config() -> Config {
+    // ワークスペースルートの config/default.toml を試す
+    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .map(|p| p.to_path_buf());
+    if let Some(ref root) = workspace_root {
+        let path = root.join("config").join("default.toml");
+        if let Ok(config) = load_from(&path) {
+            return config;
+        }
+    }
+
+    // exe と同じディレクトリの config.toml（インストール環境の初期値）
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(dir) = exe_path.parent() {
+            let path = dir.join("config.toml");
+            if let Ok(config) = load_from(&path) {
+                return config;
+            }
+        }
+    }
+
+    // フォールバック: 最小限のデフォルト
     Config {
         search: default_search_engines(),
         folders: IndexMap::new(),

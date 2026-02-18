@@ -166,6 +166,56 @@ impl KanataManager {
         );
     }
 
+    /// muhenkan-switch-core バイナリが存在するディレクトリを取得
+    ///
+    /// 探索順序:
+    /// 1. exe と同じディレクトリ（インストール環境）
+    /// 2. カレントディレクトリの bin/（開発環境: mise run build 後）
+    /// 3. ワークスペースルートの bin/（開発環境）
+    /// 4. target/debug/（開発環境: cargo build 直後）
+    fn core_binary_dir() -> Result<PathBuf> {
+        #[cfg(target_os = "windows")]
+        let name = "muhenkan-switch-core.exe";
+        #[cfg(not(target_os = "windows"))]
+        let name = "muhenkan-switch-core";
+
+        // 1. exe と同じディレクトリ
+        if let Ok(exe_dir) = std::env::current_exe().map(|p| p.parent().unwrap().to_path_buf()) {
+            if exe_dir.join(name).exists() {
+                return Ok(exe_dir);
+            }
+        }
+
+        // 2. カレントディレクトリの bin/
+        if let Ok(cwd) = std::env::current_dir() {
+            let bin_dir = cwd.join("bin");
+            if bin_dir.join(name).exists() {
+                return Ok(bin_dir);
+            }
+        }
+
+        // 3. ワークスペースルートの bin/
+        let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.to_path_buf());
+        if let Some(ref root) = workspace_root {
+            let bin_dir = root.join("bin");
+            if bin_dir.join(name).exists() {
+                return Ok(bin_dir);
+            }
+        }
+
+        // 4. target/debug/（開発環境）
+        if let Some(ref root) = workspace_root {
+            let debug_dir = root.join("target").join("debug");
+            if debug_dir.join(name).exists() {
+                return Ok(debug_dir);
+            }
+        }
+
+        anyhow::bail!("muhenkan-switch-core バイナリが見つかりません");
+    }
+
     pub fn start(&self) -> Result<()> {
         let mut guard = self.child.lock().unwrap();
         if let Some(ref child) = *guard {
@@ -182,6 +232,14 @@ impl KanataManager {
 
         let mut cmd = std::process::Command::new(&kanata);
         cmd.arg("--cfg").arg(&kbd);
+
+        // kanata の cmd 機能が muhenkan-switch-core を見つけられるよう PATH を設定
+        if let Ok(core_dir) = Self::core_binary_dir() {
+            let path = std::env::var("PATH").unwrap_or_default();
+            let sep = if cfg!(windows) { ";" } else { ":" };
+            cmd.env("PATH", format!("{}{}{}", core_dir.display(), sep, path));
+            eprintln!("[kanata] core binary dir: {}", core_dir.display());
+        }
 
         #[cfg(target_os = "windows")]
         {
@@ -266,6 +324,15 @@ impl KanataManager {
     }
 }
 
+/// Linux: Wayland セッション判定
+#[cfg(target_os = "linux")]
+fn is_wayland_session() -> bool {
+    std::env::var("WAYLAND_DISPLAY").is_ok()
+        || std::env::var("XDG_SESSION_TYPE")
+            .map(|v| v == "wayland")
+            .unwrap_or(false)
+}
+
 /// Linux: pkexec で uinput パーミッションを自動設定する
 #[cfg(target_os = "linux")]
 fn setup_uinput_with_pkexec() -> Result<()> {
@@ -312,6 +379,33 @@ pub fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     } else {
         false
     };
+
+    // Wayland 警告ダイアログ（イベントループ開始後に表示）
+    #[cfg(target_os = "linux")]
+    {
+        if is_wayland_session() {
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_secs(2));
+                use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+
+                handle
+                    .dialog()
+                    .message(
+                        "Wayland セッションが検出されました。\n\n\
+                         アプリ切り替え機能（無変換+A/W/E/S/D/F）は\n\
+                         X11 セッションでのみ動作します。\n\n\
+                         ログイン画面で「Ubuntu on Xorg」を選択して\n\
+                         X11 セッションに切り替えてください。\n\n\
+                         ※ カーソル移動・Web検索・フォルダ等の他の機能は\n\
+                         Wayland でも動作します。",
+                    )
+                    .title("muhenkan-switch: Wayland の制約")
+                    .kind(MessageDialogKind::Warning)
+                    .blocking_show();
+            });
+        }
+    }
 
     // uinput 設定ダイアログ（イベントループ開始後に表示）
     if need_uinput_dialog {

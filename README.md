@@ -127,6 +127,12 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 # 再ログインが必要
 ```
 
+> **Wayland をお使いの場合（Ubuntu 22.04 以降のデフォルト）:**
+> アプリ切り替え機能は **X11 セッションでのみ動作** します。
+> Wayland ではセキュリティ上の制約により、外部ツールからのウィンドウ操作が制限されています。
+> ログイン画面で **「Ubuntu on Xorg」** を選択して X11 セッションに切り替えてください。
+> Vim風カーソル移動・Web検索・フォルダオープン等の他の機能は Wayland でも動作します。
+
 ### アンインストール
 
 インストール先にあるアンインストールスクリプトを実行してください:
@@ -231,6 +237,9 @@ mise run setup
 | `libssl-dev` | TLS/暗号化 |
 | `build-essential` | C/C++ コンパイラ |
 | `pkexec` | GUI 権限昇格（uinput 設定用） |
+| `wmctrl` | ウィンドウアクティブ化（アプリ切り替え） |
+| `xdotool` | ウィンドウ検索・操作（アプリ切り替え） |
+| `libnotify-bin` | デスクトップ通知（notify-send） |
 
 Fedora/Arch の場合は `mise.toml` 内の対応コマンドが実行されます。
 </details>

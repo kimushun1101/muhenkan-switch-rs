@@ -14,7 +14,7 @@
 rust = "1.93"
 
 [tasks.setup]
-description = "Install build dependencies for Linux + show uinput setup guide"
+description = "Install build & runtime dependencies for Linux + show uinput setup guide"
 shell = "bash -c"
 run = """
 if [ "$(uname)" != "Linux" ]; then
@@ -29,17 +29,21 @@ if command -v apt-get >/dev/null 2>&1; then
   sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev \
     libjavascriptcoregtk-4.1-dev build-essential libssl-dev \
     libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
-    pkexec
+    pkexec \
+    wmctrl xdotool libnotify-bin
 elif command -v dnf >/dev/null 2>&1; then
   sudo dnf install -y webkit2gtk4.1-devel libsoup3-devel \
-    openssl-devel gtk3-devel libappindicator-gtk3-devel librsvg2-devel
+    openssl-devel gtk3-devel libappindicator-gtk3-devel librsvg2-devel \
+    wmctrl xdotool libnotify
 elif command -v pacman >/dev/null 2>&1; then
   sudo pacman -S --needed webkit2gtk-4.1 libsoup3 \
-    openssl gtk3 libayatana-appindicator librsvg
+    openssl gtk3 libayatana-appindicator librsvg \
+    wmctrl xdotool libnotify
 else
   echo "[setup] ERROR: Unsupported package manager. Please install manually:"
   echo "  libwebkit2gtk-4.1-dev, libsoup-3.0-dev, libgtk-3-dev,"
-  echo "  libjavascriptcoregtk-4.1-dev, libssl-dev, librsvg2-dev"
+  echo "  libjavascriptcoregtk-4.1-dev, libssl-dev, librsvg2-dev,"
+  echo "  wmctrl, xdotool, libnotify-bin"
   exit 1
 fi
 
@@ -154,11 +158,13 @@ shell = "bash -c"
 run = """
 cargo build --workspace
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
-cp "target/debug/muhenkan-switch-core${EXT}" "./muhenkan-switch-core${EXT}"
-echo "[dev] Copied -> ./muhenkan-switch-core${EXT}"
+# Linux ではバイナリ名と crate ディレクトリ名が衝突するため bin/ にコピー
+mkdir -p ./bin
+cp "target/debug/muhenkan-switch-core${EXT}" "./bin/muhenkan-switch-core${EXT}"
+echo "[dev] Copied -> ./bin/muhenkan-switch-core${EXT}"
 if [ -f "target/debug/muhenkan-switch${EXT}" ]; then
-  cp "target/debug/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
-  echo "[dev] Copied -> ./muhenkan-switch${EXT}"
+  cp "target/debug/muhenkan-switch${EXT}" "./bin/muhenkan-switch${EXT}"
+  echo "[dev] Copied -> ./bin/muhenkan-switch${EXT}"
 fi
 """
 
@@ -169,11 +175,12 @@ shell = "bash -c"
 run = """
 cargo build --workspace --release
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
-cp "target/release/muhenkan-switch-core${EXT}" "./muhenkan-switch-core${EXT}"
-echo "[dev] Copied -> ./muhenkan-switch-core${EXT}"
+mkdir -p ./bin
+cp "target/release/muhenkan-switch-core${EXT}" "./bin/muhenkan-switch-core${EXT}"
+echo "[dev] Copied -> ./bin/muhenkan-switch-core${EXT}"
 if [ -f "target/release/muhenkan-switch${EXT}" ]; then
-  cp "target/release/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
-  echo "[dev] Copied -> ./muhenkan-switch${EXT}"
+  cp "target/release/muhenkan-switch${EXT}" "./bin/muhenkan-switch${EXT}"
+  echo "[dev] Copied -> ./bin/muhenkan-switch${EXT}"
 fi
 """
 
@@ -207,8 +214,8 @@ mkdir -p "$STAGING"
 echo "[test-install] Creating staging directory..."
 
 # バイナリ
-cp ./muhenkan-switch-core "$STAGING/"
-cp ./muhenkan-switch "$STAGING/" 2>/dev/null || true
+cp ./bin/muhenkan-switch-core "$STAGING/"
+cp ./bin/muhenkan-switch "$STAGING/" 2>/dev/null || true
 
 # 設定ファイル
 cp config/default.toml "$STAGING/config.toml"
