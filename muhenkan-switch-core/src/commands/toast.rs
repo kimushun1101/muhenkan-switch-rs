@@ -254,7 +254,10 @@ pub use imp::Toast;
 
 // ── Tests ──
 
+// Windows の Toast は Win32 ウィンドウ + メッセージループを生成するため、
+// 並行テストでウィンドウクラスが競合しクラッシュする。Linux/macOS のみ実行。
 #[cfg(test)]
+#[cfg(not(target_os = "windows"))]
 mod tests {
     use super::Toast;
 
