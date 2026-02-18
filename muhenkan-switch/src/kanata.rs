@@ -201,6 +201,15 @@ impl KanataManager {
         let pid = child.id();
         eprintln!("[kanata] started (pid: {})", pid);
 
+        // 起動直後にクラッシュしていないか確認
+        std::thread::sleep(Duration::from_millis(500));
+        if let Ok(Some(_status)) = child.try_wait() {
+            #[cfg(target_os = "linux")]
+            Self::print_uinput_guide();
+
+            anyhow::bail!("kanata が起動直後に終了しました (pid: {pid})");
+        }
+
         #[cfg(target_os = "windows")]
         if let Some(ref job) = self.job {
             job.assign(pid);
@@ -238,14 +247,122 @@ impl KanataManager {
             None => (false, None),
         }
     }
+
+    /// Linux: uinput パーミッション未設定の案内を stderr に表示
+    #[cfg(target_os = "linux")]
+    fn print_uinput_guide() {
+        use std::fs::OpenOptions;
+        if OpenOptions::new()
+            .write(true)
+            .open("/dev/uinput")
+            .is_ok()
+        {
+            return;
+        }
+        eprintln!();
+        eprintln!("[kanata] uinput デバイスにアクセスできません。");
+        eprintln!("[kanata] GUI からシステム設定ダイアログが表示されます。");
+        eprintln!();
+    }
+}
+
+/// Linux: pkexec で uinput パーミッションを自動設定する
+#[cfg(target_os = "linux")]
+fn setup_uinput_with_pkexec() -> Result<()> {
+    let user = std::env::var("USER").unwrap_or_default();
+    let script = format!(
+        r#"
+groupadd -f uinput
+usermod -aG input {user}
+usermod -aG uinput {user}
+echo 'KERNEL=="uinput", MODE="0660", GROUP="uinput", OPTIONS+="static_node=uinput"' \
+  > /etc/udev/rules.d/99-uinput.rules
+udevadm control --reload-rules && udevadm trigger
+"#
+    );
+
+    let status = std::process::Command::new("pkexec")
+        .arg("bash")
+        .arg("-c")
+        .arg(&script)
+        .status()
+        .context("pkexec の実行に失敗しました")?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("設定がキャンセルされました")
+    }
 }
 
 /// アプリ起動時のセットアップ（kanata 自動開始 + 状態監視スレッド起動）
 pub fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // kanata を自動開始
     let manager = app.state::<KanataManager>();
-    if let Err(e) = manager.start() {
+    let need_uinput_dialog = if let Err(e) = manager.start() {
         eprintln!("[kanata] 自動開始に失敗: {:#}", e);
+
+        #[cfg(target_os = "linux")]
+        {
+            use std::fs::OpenOptions;
+            OpenOptions::new().write(true).open("/dev/uinput").is_err()
+        }
+        #[cfg(not(target_os = "linux"))]
+        false
+    } else {
+        false
+    };
+
+    // uinput 設定ダイアログ（イベントループ開始後に表示）
+    if need_uinput_dialog {
+        let handle = app.handle().clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(1));
+            use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+
+            // 同意を求める
+            let confirmed = handle
+                .dialog()
+                .message(
+                    "キーボード機能を使用するにはシステム設定が必要です。\n\
+                     「設定する」を押すと以下を自動で行います:\n\n\
+                     ・キーボード制御用のグループを作成\n\
+                     ・現在のユーザーをグループに追加\n\
+                     ・デバイスのアクセス権限ルールを登録\n\n\
+                     パスワードの入力が求められます。\n\
+                     ※ この設定は初回のみ必要です。",
+                )
+                .title("muhenkan-switch: システム設定")
+                .buttons(MessageDialogButtons::OkCancelCustom(
+                    "設定する".into(),
+                    "キャンセル".into(),
+                ))
+                .kind(MessageDialogKind::Info)
+                .blocking_show();
+
+            if !confirmed {
+                return;
+            }
+
+            // pkexec で設定実行
+            match setup_uinput_with_pkexec() {
+                Ok(()) => {
+                    handle
+                        .dialog()
+                        .message(
+                            "設定が完了しました。\n\
+                             反映するにはパソコンからログアウトし、\n\
+                             再度ログインしてください。",
+                        )
+                        .title("muhenkan-switch: 設定完了")
+                        .kind(MessageDialogKind::Info)
+                        .blocking_show();
+                }
+                Err(e) => {
+                    eprintln!("[kanata] uinput 設定に失敗: {:#}", e);
+                }
+            }
+        });
     }
 
     let app_handle = app.handle().clone();
