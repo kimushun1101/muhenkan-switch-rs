@@ -98,7 +98,7 @@ ext = ".exe" if os.name == "nt" else ""
 dest = f"./kanata_cmd_allowed{ext}"
 
 if os.path.exists(dest):
-    print("[fetch-kanata] kanata_cmd_allowed already exists — skipping.")
+    print("[fetch-kanata] kanata_cmd_allowed already exists -- skipping.")
     sys.exit(0)
 
 system = platform.system()

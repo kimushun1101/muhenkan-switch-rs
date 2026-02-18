@@ -316,11 +316,23 @@ impl KanataManager {
             eprintln!("[kanata] core binary dir: {}", core_dir.display());
         }
 
+        // Windows: GUI プロセスに非表示コンソールを割り当てる。
+        // kanata がこのコンソールを継承し、(cmd ...) で起動される子プロセスも
+        // 同じコンソールを継承するため、新しい可視ウィンドウが生成されない。
+        // CREATE_NO_WINDOW を使うと kanata にコンソールが無くなり、
+        // 子プロセスが新しい可視コンソールを作成してしまう。
         #[cfg(target_os = "windows")]
         {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
+            use windows::Win32::System::Console::{AllocConsole, GetConsoleWindow};
+            use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE};
+            unsafe {
+                if AllocConsole().is_ok() {
+                    let console_hwnd = GetConsoleWindow();
+                    if !console_hwnd.0.is_null() {
+                        let _ = ShowWindow(console_hwnd, SW_HIDE);
+                    }
+                }
+            }
         }
 
         let child = SharedChild::spawn(&mut cmd)

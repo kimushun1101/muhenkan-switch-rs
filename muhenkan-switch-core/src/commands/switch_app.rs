@@ -1,4 +1,5 @@
 use anyhow::Result;
+#[cfg(not(target_os = "windows"))]
 use std::process::Command;
 
 use crate::config::Config;
@@ -71,12 +72,7 @@ mod imp {
         if pids.is_empty() {
             // Process not found — launch if configured
             if let Some(cmd) = launch {
-                use std::os::windows::process::CommandExt;
-                const CREATE_NO_WINDOW: u32 = 0x08000000;
-                Command::new("cmd")
-                    .args(["/C", "start", "", cmd])
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .spawn()?;
+                shell_execute(cmd)?;
             }
             return Ok(());
         }
@@ -115,12 +111,7 @@ mod imp {
             None => {
                 // Window not found — launch if configured
                 if let Some(cmd) = launch {
-                    use std::os::windows::process::CommandExt;
-                    const CREATE_NO_WINDOW: u32 = 0x08000000;
-                    Command::new("cmd")
-                        .args(["/C", "start", "", cmd])
-                        .creation_flags(CREATE_NO_WINDOW)
-                        .spawn()?;
+                    shell_execute(cmd)?;
                 }
                 return Ok(());
             }
@@ -149,6 +140,59 @@ mod imp {
         }
 
         Ok(())
+    }
+
+    /// コンソールウィンドウを出さずにアプリを起動する。
+    /// .cmd/.bat は cmd.exe 経由(CREATE_NO_WINDOW)、それ以外は ShellExecuteW。
+    fn shell_execute(cmd: &str) -> Result<()> {
+        // コマンドが .cmd/.bat で終わるか、PATH 上に .cmd/.bat として存在するか確認
+        if needs_cmd_exe(cmd) {
+            use std::os::windows::process::CommandExt;
+            use std::process::Command;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            Command::new("cmd")
+                .args(["/C", "start", "/B", "", cmd])
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn()?;
+        } else {
+            use windows::core::PCWSTR;
+            use windows::Win32::UI::Shell::ShellExecuteW;
+            use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+            let cmd_wide: Vec<u16> = cmd.encode_utf16().chain(std::iter::once(0)).collect();
+            unsafe {
+                ShellExecuteW(
+                    None,
+                    None,
+                    PCWSTR::from_raw(cmd_wide.as_ptr()),
+                    None,
+                    None,
+                    SW_SHOWNORMAL,
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// コマンドが .cmd/.bat ファイルかどうかを判定する
+    fn needs_cmd_exe(cmd: &str) -> bool {
+        let cmd_lower = cmd.to_ascii_lowercase();
+        // 明示的な拡張子
+        if cmd_lower.ends_with(".cmd") || cmd_lower.ends_with(".bat") {
+            return true;
+        }
+        // PATH 上に .cmd/.bat として存在するか探索
+        if let Ok(path_var) = std::env::var("PATH") {
+            for dir in path_var.split(';') {
+                let dir = std::path::Path::new(dir);
+                if dir.join(format!("{}.cmd", cmd)).exists()
+                    || dir.join(format!("{}.bat", cmd)).exists()
+                {
+                    return true;
+                }
+            }
+        }
+        false
     }
 }
 
