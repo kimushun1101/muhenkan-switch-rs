@@ -196,7 +196,6 @@ mod imp {
             CoCreateInstance, CoInitializeEx, CoTaskMemFree, IServiceProvider, CLSCTX_LOCAL_SERVER,
             COINIT_APARTMENTTHREADED,
         };
-        use windows::Win32::System::Ole::IOleWindow;
         use windows::Win32::System::Variant::VARIANT;
         use windows::Win32::UI::Shell::{
             IFolderView2, IShellItem, IShellItemArray, IShellWindows, ShellWindows,
