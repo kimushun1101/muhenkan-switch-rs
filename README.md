@@ -82,7 +82,8 @@ irm https://raw.githubusercontent.com/kimushun1101/muhenkan-switch-rs/main/scrip
 インストールスクリプトは以下を自動で行います:
 - kanata のダウンロード（GitHub Releases から）
 - ファイルの配置（下記インストール先）
-- PATH の設定（Windows: ユーザー環境変数、Linux/macOS: `~/.local/bin` にシンボリックリンク）
+- PATH の設定（Linux/macOS: `~/.local/bin` にシンボリックリンク）
+- スタートメニューショートカットの作成（Windows）
 - オプション: 自動起動の設定（Windows: スタートアップ、Linux: XDG autostart、macOS: launchd）
 
 | OS | インストール先 |
@@ -101,13 +102,11 @@ irm https://raw.githubusercontent.com/kimushun1101/muhenkan-switch-rs/main/scrip
 └── config.toml                # muhenkan-switch 設定ファイル
 ```
 
-### 2. ターミナルを再起動
+### 2. 起動
 
-PATH の変更を反映するため、ターミナルを再起動してください。
+スタートメニューから `muhenkan-switch` を起動してください（Windows）。システムトレイに常駐し、kanata を自動管理します。
 
-### 3. 起動
-
-`muhenkan-switch` を起動してください。システムトレイに常駐し、kanata を自動管理します。
+Linux/macOS ではターミナルから `muhenkan-switch` を実行してください。
 
 無変換キーを押しながら H/J/K/L でカーソルが移動すれば成功です。
 
@@ -144,7 +143,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 
 手動で削除する場合は、以下を削除してください:
 - インストールディレクトリ（上記表を参照）
-- PATH からインストールディレクトリを除去（Windows のみ）
+- スタートメニューショートカット（Windows）/ PATH のシンボリックリンク（Linux/macOS）
 - 自動起動設定（Windows: スタートアップショートカット、Linux: XDG autostart、macOS: launchd エージェント）
 
 ### 更新
