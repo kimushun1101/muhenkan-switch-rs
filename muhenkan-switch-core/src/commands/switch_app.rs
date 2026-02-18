@@ -28,6 +28,10 @@ mod imp {
         TH32CS_SNAPPROCESS,
     };
     use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP,
+        VK_MENU,
+    };
     use windows::Win32::UI::WindowsAndMessaging::{
         EnumWindows, GetForegroundWindow, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
         SetForegroundWindow, ShowWindow, SW_RESTORE,
@@ -128,6 +132,30 @@ mod imp {
             } else {
                 false
             };
+
+            // Alt キーの press/release をシミュレートして、Windows に
+            // 「このプロセスがキー入力を受けた」と認識させる。
+            // これにより SetForegroundWindow がバックグラウンドからでも成功する。
+            let alt_down = INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 {
+                    ki: KEYBDINPUT {
+                        wVk: VK_MENU,
+                        ..Default::default()
+                    },
+                },
+            };
+            let alt_up = INPUT {
+                r#type: INPUT_KEYBOARD,
+                Anonymous: INPUT_0 {
+                    ki: KEYBDINPUT {
+                        wVk: VK_MENU,
+                        dwFlags: KEYEVENTF_KEYUP,
+                        ..Default::default()
+                    },
+                },
+            };
+            SendInput(&[alt_down, alt_up], size_of::<INPUT>() as i32);
 
             if IsIconic(hwnd).as_bool() {
                 let _ = ShowWindow(hwnd, SW_RESTORE);
