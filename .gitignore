@@ -25,3 +25,7 @@ Thumbs.db
 # Release packages
 *.zip
 *.tar.gz
+
+# Test install staging
+/tmp-test-install/
+/tmp-kanata-install/

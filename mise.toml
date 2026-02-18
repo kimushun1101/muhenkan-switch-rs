@@ -7,6 +7,8 @@
 #   mise run release     release ビルド → ルートにコピー
 #   mise run dev         ビルド後、GUI を起動（kanata は GUI 内から制御）
 #   mise run test        ユニットテスト
+#   mise run test-install ローカルでインストールスクリプトをテスト
+#   mise run reset-uinput uinput 設定をリセット（再テスト用）
 
 [tools]
 rust = "1.93"
@@ -187,3 +189,88 @@ cargo run -p muhenkan-switch
 [tasks.test]
 description = "Run all tests"
 run = "cargo test --workspace"
+
+[tasks.test-install]
+description = "Build release and run install.sh locally (simulates CI release)"
+depends = ["release"]
+shell = "bash -c"
+run = """
+if [ "$(uname)" != "Linux" ]; then
+  echo "[test-install] Currently only supports Linux."
+  exit 1
+fi
+
+STAGING="tmp-test-install/muhenkan-switch-rs-linux-x64"
+rm -rf tmp-test-install
+mkdir -p "$STAGING"
+
+echo "[test-install] Creating staging directory..."
+
+# バイナリ
+cp ./muhenkan-switch-core "$STAGING/"
+cp ./muhenkan-switch "$STAGING/" 2>/dev/null || true
+
+# 設定ファイル
+cp config/default.toml "$STAGING/config.toml"
+cp kanata/muhenkan.kbd "$STAGING/"
+cp kanata/muhenkan-macos.kbd "$STAGING/" 2>/dev/null || true
+
+# スクリプト
+cp scripts/install.sh "$STAGING/"
+cp scripts/uninstall.sh "$STAGING/"
+cp scripts/update.sh "$STAGING/"
+chmod +x "$STAGING/"*.sh
+
+# README
+cp README.md "$STAGING/"
+
+echo "[test-install] Staging directory: $STAGING"
+echo "[test-install] Contents:"
+ls -la "$STAGING/"
+echo ""
+echo "[test-install] Running install.sh..."
+echo ""
+
+cd "$STAGING"
+bash install.sh
+"""
+
+[tasks.test-uninstall]
+description = "Run uninstall.sh from the install directory"
+shell = "bash -c"
+run = """
+UNINSTALL="$HOME/.local/share/muhenkan-switch-rs/uninstall.sh"
+if [ -f "$UNINSTALL" ]; then
+  bash "$UNINSTALL"
+else
+  echo "[test-uninstall] uninstall.sh not found at $UNINSTALL"
+  echo "[test-uninstall] muhenkan-switch-rs is not installed."
+fi
+"""
+
+[tasks.reset-uinput]
+description = "Reset uinput permissions for re-testing pkexec dialog"
+shell = "bash -c"
+run = """
+echo "[reset-uinput] Resetting uinput configuration..."
+echo ""
+echo "以下の操作を行います:"
+echo "  1. /etc/udev/rules.d/99-uinput.rules を削除"
+echo "  2. $USER を input/uinput グループから除去"
+echo "  3. udev ルールをリロード"
+echo ""
+read -rp "続行しますか？ (y/N): " confirm
+if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+  echo "中止しました。"
+  exit 0
+fi
+
+sudo rm -f /etc/udev/rules.d/99-uinput.rules
+sudo gpasswd -d "$USER" input 2>/dev/null || true
+sudo gpasswd -d "$USER" uinput 2>/dev/null || true
+sudo udevadm control --reload-rules && sudo udevadm trigger
+
+echo ""
+echo "[reset-uinput] Done. 再ログインすると uinput 設定がリセットされます。"
+echo "[reset-uinput] 再ログイン後に mise run dev を起動すると pkexec ダイアログが表示されます。"
+"""
