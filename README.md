@@ -209,12 +209,40 @@ curl https://mise.jdx.dev/install.sh | sh
 # または Scoop: scoop install mise
 ```
 
+#### Linux の追加セットアップ
+
+Tauri のビルドにはシステムライブラリが必要です。`mise run setup` で一括インストールできます。
+
+```bash
+mise run setup
+```
+
+<details>
+<summary>インストールされるパッケージ一覧（Ubuntu/Debian）</summary>
+
+| パッケージ | 用途 |
+|---|---|
+| `libwebkit2gtk-4.1-dev` | WebView エンジン（Tauri GUI） |
+| `libsoup-3.0-dev` | HTTP ライブラリ |
+| `libjavascriptcoregtk-4.1-dev` | JavaScript エンジン |
+| `libgtk-3-dev` | GTK3 ツールキット |
+| `libayatana-appindicator3-dev` | システムトレイ |
+| `librsvg2-dev` | SVG レンダリング |
+| `libssl-dev` | TLS/暗号化 |
+| `build-essential` | C/C++ コンパイラ |
+| `pkexec` | GUI 権限昇格（uinput 設定用） |
+
+Fedora/Arch の場合は `mise.toml` 内の対応コマンドが実行されます。
+</details>
+
 ### 開発タスク
 
 ```bash
+mise run setup      # Linux: システムライブラリ + uinput 設定ガイド（初回のみ）
 mise run build      # debug ビルド → ルートにコピー
 mise run release    # release ビルド → ルートにコピー
-mise run dev        # debug ビルド後、kanata も起動
+mise run dev        # debug ビルド + kanata ダウンロード + GUI 起動
+mise run test       # ユニットテスト
 ```
 
 ## ライセンス
