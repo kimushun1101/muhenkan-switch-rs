@@ -114,6 +114,10 @@ case "$OS_NAME" in
       *)     ASSET="macos-binaries-x64.zip";   BINARY="kanata_macos_cmd_allowed_x64" ;;
     esac
     ;;
+  MINGW*|MSYS*)
+    ASSET="windows-binaries-x64.zip"
+    BINARY="kanata_windows_gui_winIOv2_cmd_allowed_x64.exe"
+    ;;
   *)
     echo "[fetch-kanata] Unsupported OS: $OS_NAME"
     echo "  Download manually from https://github.com/jtroo/kanata/releases"
@@ -136,19 +140,32 @@ if [ -n "$FOUND" ]; then
 fi
 rm -rf "$TMPDIR"
 
-# 2. GLIBC 互換性チェック — 失敗ならソースからビルド
-if [ -f "$DEST" ] && "$DEST" --version >/dev/null 2>&1; then
-  echo "[fetch-kanata] Done -> $DEST (prebuilt)"
-else
-  [ -f "$DEST" ] && rm -f "$DEST"
-  echo "[fetch-kanata] Prebuilt binary incompatible (likely GLIBC mismatch)."
-  echo "[fetch-kanata] Building kanata from source (this may take a few minutes)..."
-  cargo install kanata --version "${KANATA_VERSION#v}" --features cmd --root ./tmp-kanata-install
-  cp "./tmp-kanata-install/bin/kanata${EXT}" "$DEST"
-  chmod +x "$DEST"
-  rm -rf ./tmp-kanata-install
-  echo "[fetch-kanata] Done -> $DEST (built from source)"
+if [ ! -f "$DEST" ]; then
+  echo "[fetch-kanata] ERROR: Binary not found in archive."
+  echo "  Download manually from https://github.com/jtroo/kanata/releases"
+  exit 1
 fi
+
+# 2. GLIBC 互換性チェック（Linux のみ）— 失敗ならソースからビルド
+case "$OS_NAME" in
+  Linux)
+    if ! "$DEST" --version >/dev/null 2>&1; then
+      rm -f "$DEST"
+      echo "[fetch-kanata] Prebuilt binary incompatible (likely GLIBC mismatch)."
+      echo "[fetch-kanata] Building kanata from source (this may take a few minutes)..."
+      cargo install kanata --version "${KANATA_VERSION#v}" --features cmd --root ./tmp-kanata-install
+      cp "./tmp-kanata-install/bin/kanata${EXT}" "$DEST"
+      chmod +x "$DEST"
+      rm -rf ./tmp-kanata-install
+      echo "[fetch-kanata] Done -> $DEST (built from source)"
+    else
+      echo "[fetch-kanata] Done -> $DEST (prebuilt)"
+    fi
+    ;;
+  *)
+    echo "[fetch-kanata] Done -> $DEST (prebuilt)"
+    ;;
+esac
 """
 
 [tasks.build]
