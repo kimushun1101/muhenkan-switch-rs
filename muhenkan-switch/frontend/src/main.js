@@ -474,7 +474,7 @@ function updateKanataUI(running) {
   const footerDot = document.getElementById("footer-kanata-dot");
   const footerText = document.getElementById("footer-kanata-text");
   if (footerDot) footerDot.classList.toggle("running", running);
-  if (footerText) footerText.textContent = running ? "kanata: 実行中" : "kanata: 停止中";
+  if (footerText) footerText.textContent = running ? "キー割当（kanata）: 実行中" : "キー割当（kanata）: 停止中";
   // General tab
   const genDot = document.getElementById("general-kanata-dot");
   const genText = document.getElementById("general-kanata-text");

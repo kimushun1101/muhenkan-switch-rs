@@ -198,8 +198,8 @@ impl KanataManager {
         }
 
         anyhow::bail!(
-            "kanata バイナリが見つかりません ({name})\n\
-             プロジェクトルートに {name} を配置してください"
+            "キー割当の起動に必要なファイルが見つかりません。\n\
+             再インストールしてください。"
         );
     }
 
@@ -239,8 +239,8 @@ impl KanataManager {
         }
 
         anyhow::bail!(
-            "kanata 設定ファイルが見つかりません (muhenkan.kbd)\n\
-             kanata/muhenkan.kbd が存在するか確認してください"
+            "キー割当の設定ファイルが見つかりません。\n\
+             再インストールしてください。"
         );
     }
 
@@ -288,14 +288,14 @@ impl KanataManager {
             }
         }
 
-        anyhow::bail!("muhenkan-switch-core バイナリが見つかりません");
+        anyhow::bail!("キー割当の補助プログラムが見つかりません。\n再インストールしてください。");
     }
 
     pub fn start(&self) -> Result<()> {
         let mut guard = self.child.lock().unwrap();
         if let Some(ref child) = *guard {
             if child.try_wait().ok().flatten().is_none() {
-                anyhow::bail!("kanata は既に実行中です");
+                anyhow::bail!("キー割当は既に実行中です");
             }
         }
 
@@ -336,12 +336,7 @@ impl KanataManager {
         }
 
         let child = SharedChild::spawn(&mut cmd)
-            .with_context(|| format!(
-                "kanata の起動に失敗しました\n\
-                 バイナリ: {}\n\
-                 設定: {}",
-                kanata.display(), kbd.display()
-            ))?;
+            .with_context(|| "キー割当の起動に失敗しました。\n再インストールしてください。".to_string())?;
 
         let pid = child.id();
         eprintln!("[kanata] started (pid: {})", pid);
@@ -352,7 +347,7 @@ impl KanataManager {
             #[cfg(target_os = "linux")]
             linux_support::print_uinput_guide();
 
-            anyhow::bail!("kanata が起動直後に終了しました (pid: {pid})");
+            anyhow::bail!("キー割当の起動に失敗しました。");
         }
 
         #[cfg(target_os = "windows")]
@@ -368,8 +363,8 @@ impl KanataManager {
     pub fn stop(&self) -> Result<()> {
         let mut guard = self.child.lock().unwrap();
         if let Some(child) = guard.take() {
-            child.kill().context("kanata プロセスの停止に失敗しました")?;
-            child.wait().context("kanata プロセスの終了待機に失敗しました")?;
+            child.kill().context("キー割当の停止に失敗しました")?;
+            child.wait().context("キー割当の終了待機に失敗しました")?;
             eprintln!("[kanata] stopped");
         }
         Ok(())

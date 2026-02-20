@@ -266,7 +266,7 @@ pub fn open_install_dir() -> Result<(), String> {
     let dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        .ok_or_else(|| "Cannot determine install directory".to_string())?;
+        .ok_or_else(|| "インストール先のフォルダが見つかりません".to_string())?;
     open::that(&dir).map_err(|e| e.to_string())
 }
 
