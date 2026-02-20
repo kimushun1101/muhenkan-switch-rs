@@ -289,7 +289,7 @@ pub fn open_help_window(app: tauri::AppHandle) -> Result<(), String> {
         use tauri::{WebviewUrl, WebviewWindowBuilder};
         let _ = WebviewWindowBuilder::new(&app, "help", WebviewUrl::App("help.html".into()))
             .title("使い方 — muhenkan-switch")
-            .inner_size(660.0, 480.0)
+            .inner_size(600.0, 700.0)
             .resizable(true)
             .center()
             .build();
