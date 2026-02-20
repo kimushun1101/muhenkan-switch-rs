@@ -16,8 +16,21 @@ Thumbs.db
 # Binaries (runtime)
 *.exe
 *.dll
+/kanata_cmd_allowed
+/muhenkan-switch-core
+/muhenkan-switch
+!/muhenkan-switch/
+/bin/
 /config.toml
 
 # Release packages
 *.zip
 *.tar.gz
+
+# Generated files
+/muhenkan-switch/gen/
+/muhenkan-switch/muhenkan-switch
+
+# Test install staging
+/tmp-test-install/
+/tmp-kanata-install/

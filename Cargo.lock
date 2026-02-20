@@ -2098,6 +2098,7 @@ dependencies = [
  "chrono",
  "clap",
  "dirs 6.0.0",
+ "indexmap 2.13.0",
  "muhenkan-switch-config",
  "open",
  "urlencoding",

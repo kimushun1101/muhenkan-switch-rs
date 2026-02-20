@@ -1,7 +1,9 @@
-//! Lightweight Win32 toast notification for Explorer file operations.
+//! Lightweight toast notification for file operations.
 //!
 //! Shows an immediate "processing" message, then updates with the result
 //! and auto-dismisses after 1.5 seconds.
+
+// ── Platform: Windows ──
 
 #[cfg(target_os = "windows")]
 mod imp {
@@ -203,8 +205,40 @@ mod imp {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+// ── Platform: Linux ──
+
+#[cfg(target_os = "linux")]
 mod imp {
+    use std::process::Command;
+
+    pub struct Toast;
+
+    impl Toast {
+        pub fn show(initial_message: &str) -> Self {
+            let _ = Command::new("notify-send")
+                .args([
+                    "--app-name=muhenkan-switch",
+                    "muhenkan-switch",
+                    initial_message,
+                ])
+                .spawn();
+            Toast
+        }
+
+        pub fn finish(self, message: &str) {
+            let _ = Command::new("notify-send")
+                .args(["--app-name=muhenkan-switch", "muhenkan-switch", message])
+                .spawn();
+        }
+    }
+}
+
+// ── Platform: macOS ──
+
+#[cfg(target_os = "macos")]
+mod imp {
+    /// macOS: トースト通知は未実装 (no-op)。
+    /// osascript の `display notification` や terminal-notifier で実装可能。
     pub struct Toast;
 
     impl Toast {
@@ -217,3 +251,32 @@ mod imp {
 }
 
 pub use imp::Toast;
+
+// ── Tests ──
+
+// Windows の Toast は Win32 ウィンドウ + メッセージループを生成するため、
+// 並行テストでウィンドウクラスが競合しクラッシュする。Linux/macOS のみ実行。
+#[cfg(test)]
+#[cfg(not(target_os = "windows"))]
+mod tests {
+    use super::Toast;
+
+    #[test]
+    fn toast_show_and_finish_does_not_panic() {
+        // notify-send がなくてもパニックしないことを確認
+        let toast = Toast::show("test message");
+        toast.finish("done");
+    }
+
+    #[test]
+    fn toast_show_with_empty_message() {
+        let toast = Toast::show("");
+        toast.finish("");
+    }
+
+    #[test]
+    fn toast_show_with_japanese_message() {
+        let toast = Toast::show("処理中...");
+        toast.finish("完了しました");
+    }
+}

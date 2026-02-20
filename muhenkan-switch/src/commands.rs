@@ -81,11 +81,14 @@ pub struct ProcessInfo {
 
 #[tauri::command]
 pub fn get_running_processes() -> Result<Vec<ProcessInfo>, String> {
-    get_processes_impl().map_err(|e| e.to_string())
+    imp::get_processes_impl().map_err(|e| e.to_string())
 }
 
+// ── Platform: Windows ──
+
 #[cfg(target_os = "windows")]
-fn get_processes_impl() -> anyhow::Result<Vec<ProcessInfo>> {
+mod imp {
+    use super::ProcessInfo;
     use std::collections::HashSet;
     use std::ffi::OsString;
     use std::os::windows::ffi::OsStringExt;
@@ -94,72 +97,118 @@ fn get_processes_impl() -> anyhow::Result<Vec<ProcessInfo>> {
         TH32CS_SNAPPROCESS,
     };
 
-    let mut processes = Vec::new();
-    let mut seen = HashSet::new();
+    pub(super) fn get_processes_impl() -> anyhow::Result<Vec<ProcessInfo>> {
+        let mut processes = Vec::new();
+        let mut seen = HashSet::new();
 
-    unsafe {
-        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
-            .map_err(|e| anyhow::anyhow!("Failed to create snapshot: {}", e))?;
-        let mut entry = PROCESSENTRY32W {
-            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
-            ..Default::default()
-        };
+        unsafe {
+            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+                .map_err(|e| anyhow::anyhow!("Failed to create snapshot: {}", e))?;
+            let mut entry = PROCESSENTRY32W {
+                dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+                ..Default::default()
+            };
 
-        if Process32FirstW(snapshot, &mut entry).is_ok() {
-            loop {
-                let exe_len = entry
-                    .szExeFile
-                    .iter()
-                    .position(|&c| c == 0)
-                    .unwrap_or(entry.szExeFile.len());
-                let name = OsString::from_wide(&entry.szExeFile[..exe_len])
-                    .to_string_lossy()
-                    .to_string();
+            if Process32FirstW(snapshot, &mut entry).is_ok() {
+                loop {
+                    let exe_len = entry
+                        .szExeFile
+                        .iter()
+                        .position(|&c| c == 0)
+                        .unwrap_or(entry.szExeFile.len());
+                    let name = OsString::from_wide(&entry.szExeFile[..exe_len])
+                        .to_string_lossy()
+                        .to_string();
 
-                if !seen.contains(&name) {
-                    seen.insert(name.clone());
-                    processes.push(ProcessInfo {
-                        name,
-                        pid: entry.th32ProcessID,
-                    });
-                }
+                    if !seen.contains(&name) {
+                        seen.insert(name.clone());
+                        processes.push(ProcessInfo {
+                            name,
+                            pid: entry.th32ProcessID,
+                        });
+                    }
 
-                if Process32NextW(snapshot, &mut entry).is_err() {
-                    break;
+                    if Process32NextW(snapshot, &mut entry).is_err() {
+                        break;
+                    }
                 }
             }
+            let _ = windows::Win32::Foundation::CloseHandle(snapshot);
         }
-        let _ = windows::Win32::Foundation::CloseHandle(snapshot);
-    }
 
-    processes.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    Ok(processes)
+        processes.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        Ok(processes)
+    }
 }
 
-#[cfg(not(target_os = "windows"))]
-fn get_processes_impl() -> anyhow::Result<Vec<ProcessInfo>> {
-    // Linux/macOS: use ps command
-    let output = std::process::Command::new("ps")
-        .args(["-eo", "pid,comm"])
-        .output()?;
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut processes = Vec::new();
-    let mut seen = std::collections::HashSet::new();
+// ── Platform: Linux ──
 
-    for line in stdout.lines().skip(1) {
-        let parts: Vec<&str> = line.trim().splitn(2, char::is_whitespace).collect();
-        if parts.len() == 2 {
-            let pid: u32 = parts[0].trim().parse().unwrap_or(0);
-            let name = parts[1].trim().to_string();
-            if !seen.contains(&name) {
-                seen.insert(name.clone());
-                processes.push(ProcessInfo { name, pid });
-            }
-        }
+#[cfg(target_os = "linux")]
+mod imp {
+    use super::ProcessInfo;
+
+    pub(super) fn get_processes_impl() -> anyhow::Result<Vec<ProcessInfo>> {
+        ps_processes()
     }
 
-    processes.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    Ok(processes)
+    fn ps_processes() -> anyhow::Result<Vec<ProcessInfo>> {
+        let output = std::process::Command::new("ps")
+            .args(["-eo", "pid,comm"])
+            .output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut processes = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        for line in stdout.lines().skip(1) {
+            let parts: Vec<&str> = line.trim().splitn(2, char::is_whitespace).collect();
+            if parts.len() == 2 {
+                let pid: u32 = parts[0].trim().parse().unwrap_or(0);
+                let name = parts[1].trim().to_string();
+                if !seen.contains(&name) {
+                    seen.insert(name.clone());
+                    processes.push(ProcessInfo { name, pid });
+                }
+            }
+        }
+
+        processes.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        Ok(processes)
+    }
+}
+
+// ── Platform: macOS ──
+
+#[cfg(target_os = "macos")]
+mod imp {
+    use super::ProcessInfo;
+
+    pub(super) fn get_processes_impl() -> anyhow::Result<Vec<ProcessInfo>> {
+        ps_processes()
+    }
+
+    fn ps_processes() -> anyhow::Result<Vec<ProcessInfo>> {
+        let output = std::process::Command::new("ps")
+            .args(["-eo", "pid,comm"])
+            .output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut processes = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        for line in stdout.lines().skip(1) {
+            let parts: Vec<&str> = line.trim().splitn(2, char::is_whitespace).collect();
+            if parts.len() == 2 {
+                let pid: u32 = parts[0].trim().parse().unwrap_or(0);
+                let name = parts[1].trim().to_string();
+                if !seen.contains(&name) {
+                    seen.insert(name.clone());
+                    processes.push(ProcessInfo { name, pid });
+                }
+            }
+        }
+
+        processes.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        Ok(processes)
+    }
 }
 
 // ── Autostart ──

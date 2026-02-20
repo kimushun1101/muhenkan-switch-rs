@@ -1,45 +1,203 @@
 # mise.toml — 開発環境 & タスク定義
 # 使い方:
 #   mise install         Rust ツールチェーンのセットアップ
+#   mise run setup       Linux: ビルド依存 + uinput パーミッション設定（初回のみ）
+#   mise run fetch-kanata 開発用 kanata バイナリをダウンロード
 #   mise run build       debug ビルド → ルートにコピー
 #   mise run release     release ビルド → ルートにコピー
 #   mise run dev         ビルド後、GUI を起動（kanata は GUI 内から制御）
 #   mise run test        ユニットテスト
+#   mise run test-install ローカルでインストールスクリプトをテスト
+#   mise run reset-uinput uinput 設定をリセット（再テスト用）
 
 [tools]
 rust = "1.93"
 
+[tasks.setup]
+description = "Install build & runtime dependencies for Linux + show uinput setup guide"
+shell = "bash -c"
+run = """
+if [ "$(uname)" != "Linux" ]; then
+  echo "[setup] Not Linux — no system dependencies needed."
+  exit 0
+fi
+
+# ── Tauri ビルド依存ライブラリ ──
+echo "[setup] Installing Tauri build dependencies..."
+if command -v apt-get >/dev/null 2>&1; then
+  sudo apt-get update
+  sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev \
+    libjavascriptcoregtk-4.1-dev build-essential libssl-dev \
+    libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+    pkexec \
+    wmctrl xdotool libnotify-bin
+elif command -v dnf >/dev/null 2>&1; then
+  sudo dnf install -y webkit2gtk4.1-devel libsoup3-devel \
+    openssl-devel gtk3-devel libappindicator-gtk3-devel librsvg2-devel \
+    wmctrl xdotool libnotify
+elif command -v pacman >/dev/null 2>&1; then
+  sudo pacman -S --needed webkit2gtk-4.1 libsoup3 \
+    openssl gtk3 libayatana-appindicator librsvg \
+    wmctrl xdotool libnotify
+else
+  echo "[setup] ERROR: Unsupported package manager. Please install manually:"
+  echo "  libwebkit2gtk-4.1-dev, libsoup-3.0-dev, libgtk-3-dev,"
+  echo "  libjavascriptcoregtk-4.1-dev, libssl-dev, librsvg2-dev,"
+  echo "  wmctrl, xdotool, libnotify-bin"
+  exit 1
+fi
+
+# ── kanata 用 uinput パーミッション案内 ──
+echo ""
+echo "[setup] Done."
+echo ""
+if id -nG "$USER" | grep -qw uinput; then
+  echo "[setup] uinput グループ: 設定済み"
+else
+  cat << 'GUIDE'
+[setup] kanata を sudo なしで実行するには、以下を実行して再ログインしてください:
+
+  sudo groupadd -f uinput
+  sudo usermod -aG input $USER
+  sudo usermod -aG uinput $USER
+  echo 'KERNEL=="uinput", MODE="0660", GROUP="uinput", OPTIONS+="static_node=uinput"' \\
+    | sudo tee /etc/udev/rules.d/99-uinput.rules
+  sudo udevadm control --reload-rules && sudo udevadm trigger
+GUIDE
+fi
+"""
+
+[tasks.check-deps]
+description = "Verify Tauri system libraries are available (Linux)"
+shell = "bash -c"
+run = """
+if [ "$(uname)" != "Linux" ]; then
+  exit 0
+fi
+MISSING=""
+for lib in webkit2gtk-4.1 javascriptcoregtk-4.1 libsoup-3.0; do
+  if ! pkg-config --exists "$lib" 2>/dev/null; then
+    MISSING="$MISSING $lib"
+  fi
+done
+if [ -n "$MISSING" ]; then
+  echo "[check-deps] ERROR: Missing system libraries:$MISSING"
+  echo "[check-deps] Run 'mise run setup' to install them."
+  exit 1
+fi
+"""
+
+[tasks.fetch-kanata]
+description = "Download kanata binary for development"
+run = """
+#!/usr/bin/env python
+import os, sys, platform, zipfile, urllib.request, shutil
+
+VERSION = "v1.11.0"
+ext = ".exe" if os.name == "nt" else ""
+dest = f"./kanata_cmd_allowed{ext}"
+
+if os.path.exists(dest):
+    print("[fetch-kanata] kanata_cmd_allowed already exists -- skipping.")
+    sys.exit(0)
+
+system = platform.system()
+machine = platform.machine()
+
+if system == "Linux":
+    asset = "linux-binaries-x64.zip"
+    binary = "kanata_linux_cmd_allowed_x64"
+elif system == "Darwin":
+    if machine == "arm64":
+        asset = "macos-binaries-arm64.zip"
+        binary = "kanata_macos_cmd_allowed_arm64"
+    else:
+        asset = "macos-binaries-x64.zip"
+        binary = "kanata_macos_cmd_allowed_x64"
+elif system == "Windows":
+    asset = "windows-binaries-x64.zip"
+    binary = "kanata_windows_tty_winIOv2_cmd_allowed_x64.exe"
+else:
+    print(f"[fetch-kanata] Unsupported OS: {system}")
+    sys.exit(1)
+
+url = f"https://github.com/jtroo/kanata/releases/download/{VERSION}/{asset}"
+dldir = ".tmp-kanata-dl"
+os.makedirs(dldir, exist_ok=True)
+zippath = os.path.join(dldir, "kanata.zip")
+
+print(f"[fetch-kanata] Downloading kanata {VERSION} ({asset})...")
+urllib.request.urlretrieve(url, zippath)
+
+with zipfile.ZipFile(zippath) as z:
+    z.extract(binary, dldir)
+
+src = os.path.join(dldir, binary)
+if os.path.exists(src):
+    shutil.copy2(src, dest)
+    if os.name != "nt":
+        os.chmod(dest, 0o755)
+
+shutil.rmtree(dldir, ignore_errors=True)
+
+if not os.path.exists(dest):
+    print("[fetch-kanata] ERROR: Binary not found in archive.")
+    sys.exit(1)
+
+# GLIBC check (Linux only)
+if system == "Linux":
+    import subprocess
+    r = subprocess.run([dest, "--version"], capture_output=True)
+    if r.returncode != 0:
+        os.remove(dest)
+        print("[fetch-kanata] Prebuilt binary incompatible (likely GLIBC mismatch).")
+        print("[fetch-kanata] Building kanata from source...")
+        subprocess.run(["cargo", "install", "kanata", "--version", VERSION.lstrip("v"), "--features", "cmd", "--root", "./tmp-kanata-install"], check=True)
+        shutil.copy2(f"./tmp-kanata-install/bin/kanata{ext}", dest)
+        shutil.rmtree("./tmp-kanata-install", ignore_errors=True)
+        print(f"[fetch-kanata] Done -> {dest} (built from source)")
+    else:
+        print(f"[fetch-kanata] Done -> {dest} (prebuilt)")
+else:
+    print(f"[fetch-kanata] Done -> {dest} (prebuilt)")
+"""
+
 [tasks.build]
 description = "Build workspace (debug)"
+depends = ["check-deps"]
 shell = "bash -c"
 run = """
 cargo build --workspace
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
-cp "target/debug/muhenkan-switch-core${EXT}" "./muhenkan-switch-core${EXT}"
-echo "[dev] Copied -> ./muhenkan-switch-core${EXT}"
+# Linux ではバイナリ名と crate ディレクトリ名が衝突するため bin/ にコピー
+mkdir -p ./bin
+cp "target/debug/muhenkan-switch-core${EXT}" "./bin/muhenkan-switch-core${EXT}"
+echo "[dev] Copied -> ./bin/muhenkan-switch-core${EXT}"
 if [ -f "target/debug/muhenkan-switch${EXT}" ]; then
-  cp "target/debug/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
-  echo "[dev] Copied -> ./muhenkan-switch${EXT}"
+  cp "target/debug/muhenkan-switch${EXT}" "./bin/muhenkan-switch${EXT}"
+  echo "[dev] Copied -> ./bin/muhenkan-switch${EXT}"
 fi
 """
 
 [tasks.release]
 description = "Build workspace (release)"
+depends = ["check-deps"]
 shell = "bash -c"
 run = """
 cargo build --workspace --release
 EXT=""; [ "$OS" = "Windows_NT" ] && EXT=".exe"
-cp "target/release/muhenkan-switch-core${EXT}" "./muhenkan-switch-core${EXT}"
-echo "[dev] Copied -> ./muhenkan-switch-core${EXT}"
+mkdir -p ./bin
+cp "target/release/muhenkan-switch-core${EXT}" "./bin/muhenkan-switch-core${EXT}"
+echo "[dev] Copied -> ./bin/muhenkan-switch-core${EXT}"
 if [ -f "target/release/muhenkan-switch${EXT}" ]; then
-  cp "target/release/muhenkan-switch${EXT}" "./muhenkan-switch${EXT}"
-  echo "[dev] Copied -> ./muhenkan-switch${EXT}"
+  cp "target/release/muhenkan-switch${EXT}" "./bin/muhenkan-switch${EXT}"
+  echo "[dev] Copied -> ./bin/muhenkan-switch${EXT}"
 fi
 """
 
 [tasks.dev]
 description = "Build and start GUI"
-depends = ["build"]
+depends = ["build", "fetch-kanata"]
 shell = "bash -c"
 run = """
 echo "[dev] Starting GUI..."
@@ -49,3 +207,88 @@ cargo run -p muhenkan-switch
 [tasks.test]
 description = "Run all tests"
 run = "cargo test --workspace"
+
+[tasks.test-install]
+description = "Build release and run install.sh locally (simulates CI release)"
+depends = ["release"]
+shell = "bash -c"
+run = """
+if [ "$(uname)" != "Linux" ]; then
+  echo "[test-install] Currently only supports Linux."
+  exit 1
+fi
+
+STAGING="tmp-test-install/muhenkan-switch-rs-linux-x64"
+rm -rf tmp-test-install
+mkdir -p "$STAGING"
+
+echo "[test-install] Creating staging directory..."
+
+# バイナリ
+cp ./bin/muhenkan-switch-core "$STAGING/"
+cp ./bin/muhenkan-switch "$STAGING/" 2>/dev/null || true
+
+# 設定ファイル
+cp config/default.toml "$STAGING/config.toml"
+cp kanata/muhenkan.kbd "$STAGING/"
+cp kanata/muhenkan-macos.kbd "$STAGING/" 2>/dev/null || true
+
+# スクリプト
+cp scripts/install.sh "$STAGING/"
+cp scripts/uninstall.sh "$STAGING/"
+cp scripts/update.sh "$STAGING/"
+chmod +x "$STAGING/"*.sh
+
+# README
+cp README.md "$STAGING/"
+
+echo "[test-install] Staging directory: $STAGING"
+echo "[test-install] Contents:"
+ls -la "$STAGING/"
+echo ""
+echo "[test-install] Running install.sh..."
+echo ""
+
+cd "$STAGING"
+bash install.sh
+"""
+
+[tasks.test-uninstall]
+description = "Run uninstall.sh from the install directory"
+shell = "bash -c"
+run = """
+UNINSTALL="$HOME/.local/share/muhenkan-switch-rs/uninstall.sh"
+if [ -f "$UNINSTALL" ]; then
+  bash "$UNINSTALL"
+else
+  echo "[test-uninstall] uninstall.sh not found at $UNINSTALL"
+  echo "[test-uninstall] muhenkan-switch-rs is not installed."
+fi
+"""
+
+[tasks.reset-uinput]
+description = "Reset uinput permissions for re-testing pkexec dialog"
+shell = "bash -c"
+run = """
+echo "[reset-uinput] Resetting uinput configuration..."
+echo ""
+echo "以下の操作を行います:"
+echo "  1. /etc/udev/rules.d/99-uinput.rules を削除"
+echo "  2. $USER を input/uinput グループから除去"
+echo "  3. udev ルールをリロード"
+echo ""
+read -rp "続行しますか？ (y/N): " confirm
+if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+  echo "中止しました。"
+  exit 0
+fi
+
+sudo rm -f /etc/udev/rules.d/99-uinput.rules
+sudo gpasswd -d "$USER" input 2>/dev/null || true
+sudo gpasswd -d "$USER" uinput 2>/dev/null || true
+sudo udevadm control --reload-rules && sudo udevadm trigger
+
+echo ""
+echo "[reset-uinput] Done. 再ログインすると uinput 設定がリセットされます。"
+echo "[reset-uinput] 再ログイン後に mise run dev を起動すると pkexec ダイアログが表示されます。"
+"""

@@ -18,7 +18,8 @@ documents = {key = "1", path = "~/Documents"}
 downloads = {key = "2", path = "~/Downloads"}
 desktop = {key = "3", path = "~/Desktop"}
 onedrive = {key = "4", path = "~/OneDrive"}
-# trash は OS によりパスが異なります。空欄の場合はデフォルト動作
+# Linux: path = "~/Cloud" など任意のフォルダに変更してください
+# trash は OS によりパスが異なります。空欄の場合はデフォルト動作（Linux: ~/.local/share/Trash/files）
 trash = {key = "5", path = ""}
 
 # ── アプリ切り替え ──
@@ -28,9 +29,13 @@ trash = {key = "5", path = ""}
 [apps]
 editor = {key = "a", process = "Code", command = "code"}
 word = {key = "w", process = "WINWORD", command = "winword"}
+# Linux: process = "libreoffice", command = "libreoffice --writer"
 email = {key = "e", process = "OUTLOOK", command = "outlook"}
+# Linux: process = "thunderbird", command = "thunderbird"
 slides = {key = "s", process = "POWERPNT", command = "powerpnt"}
+# Linux: process = "libreoffice", command = "libreoffice --impress"
 pdf = {key = "d", process = "SumatraPDF", command = "sumatrapdf"}
+# Linux: process = "evince", command = "evince"
 browser = {key = "f", process = "firefox", command = "firefox"}
 
 # ── タイムスタンプ ──

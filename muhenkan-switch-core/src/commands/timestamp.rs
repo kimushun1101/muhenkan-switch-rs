@@ -67,96 +67,21 @@ fn format_toast_result(result: &Result<Vec<PathBuf>>) -> String {
 
 // ── テキスト入力コンテキスト ──
 
-/// V: タイムスタンプをカーソル位置に貼り付け
+/// V: タイムスタンプをカーソル位置に貼り付け（クリップボード復元付き）
 fn text_paste(timestamp: &str) -> Result<()> {
     let mut clipboard = Clipboard::new()?;
+    let saved = clipboard.get_text().ok();
     clipboard.set_text(timestamp)?;
     super::keys::simulate_paste()?;
+    // ペースト完了を待ってからクリップボードを復元
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    if let Some(text) = saved {
+        let _ = clipboard.set_text(text);
+    }
     Ok(())
 }
 
-// ── Explorer コンテキスト (COM API 直接呼び出し) ──
-
-/// COM API を通じて Explorer ウィンドウの選択ファイルパスを取得
-#[cfg(target_os = "windows")]
-fn get_selected_paths(hwnd: isize) -> Result<Vec<PathBuf>> {
-    use windows::core::Interface;
-    use windows::Win32::Foundation::HWND;
-    use windows::Win32::System::Com::{
-        CoCreateInstance, CoInitializeEx, CoTaskMemFree, IServiceProvider, CLSCTX_LOCAL_SERVER,
-        COINIT_APARTMENTTHREADED,
-    };
-    use windows::Win32::System::Ole::IOleWindow;
-    use windows::Win32::System::Variant::VARIANT;
-    use windows::Win32::UI::Shell::{
-        IFolderView2, IShellItem, IShellItemArray, IShellWindows, ShellWindows,
-        SID_STopLevelBrowser, SIGDN_FILESYSPATH,
-    };
-    use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, GA_ROOT};
-
-    unsafe {
-        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
-
-        let shell_windows: IShellWindows =
-            CoCreateInstance(&ShellWindows, None, CLSCTX_LOCAL_SERVER)?;
-
-        let count = shell_windows.Count()?;
-        let target = HWND(hwnd as *mut _);
-
-        for i in 0..count {
-            let v = VARIANT::from(i);
-            let disp = match shell_windows.Item(&v) {
-                Ok(d) => d,
-                Err(_) => continue,
-            };
-
-            let sp: IServiceProvider = match disp.cast() {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-
-            let browser: windows::Win32::UI::Shell::IShellBrowser =
-                match sp.QueryService(&SID_STopLevelBrowser) {
-                    Ok(b) => b,
-                    Err(_) => continue,
-                };
-
-            let ole: IOleWindow = browser.cast()?;
-            let wnd = ole.GetWindow()?;
-            let root = GetAncestor(wnd, GA_ROOT);
-            if wnd != target && root != target {
-                continue;
-            }
-
-            let view = browser.QueryActiveShellView()?;
-            let fv: IFolderView2 = view.cast()?;
-            let items: IShellItemArray = match fv.GetSelection(false) {
-                Ok(items) => items,
-                Err(_) => return Ok(vec![]),
-            };
-
-            let item_count = items.GetCount()?;
-            let mut paths = Vec::with_capacity(item_count as usize);
-
-            for j in 0..item_count {
-                let item: IShellItem = items.GetItemAt(j)?;
-                let name_pwstr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
-                let path_string = name_pwstr.to_string()?;
-                CoTaskMemFree(Some(name_pwstr.0 as _));
-                paths.push(PathBuf::from(path_string));
-            }
-
-            return Ok(paths);
-        }
-
-        Ok(vec![])
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn get_selected_paths(_hwnd: isize) -> Result<Vec<PathBuf>> {
-    anyhow::bail!("Explorer file operations are only supported on Windows")
-}
+// ── Explorer コンテキスト ──
 
 /// V: ファイル名にタイムスタンプを付加してリネーム
 fn explorer_rename_prepend(
@@ -165,7 +90,7 @@ fn explorer_rename_prepend(
     delimiter: &str,
     hwnd: isize,
 ) -> Result<Vec<PathBuf>> {
-    let paths = get_selected_paths(hwnd)?;
+    let paths = imp::get_selected_paths(hwnd)?;
     let mut results = Vec::with_capacity(paths.len());
     for src in &paths {
         let dst = build_timestamped_path(src, timestamp, position, delimiter);
@@ -182,7 +107,7 @@ fn explorer_duplicate(
     delimiter: &str,
     hwnd: isize,
 ) -> Result<Vec<PathBuf>> {
-    let paths = get_selected_paths(hwnd)?;
+    let paths = imp::get_selected_paths(hwnd)?;
     let mut results = Vec::with_capacity(paths.len());
     for src in &paths {
         let dst = build_timestamped_path(src, timestamp, position, delimiter);
@@ -199,7 +124,7 @@ fn explorer_rename_remove(
     delimiter: &str,
     hwnd: isize,
 ) -> Result<Vec<PathBuf>> {
-    let paths = get_selected_paths(hwnd)?;
+    let paths = imp::get_selected_paths(hwnd)?;
     let mut results = Vec::new();
     for src in &paths {
         if let Some(dst) = build_removed_timestamp_path(src, timestamp, position, delimiter) {
@@ -254,4 +179,116 @@ fn build_removed_timestamp_path(
     };
 
     Some(src.with_file_name(format!("{}{}", new_stem, ext)))
+}
+
+// ── Platform: Windows ──
+
+#[cfg(target_os = "windows")]
+mod imp {
+    use anyhow::Result;
+    use std::path::PathBuf;
+
+    /// COM API を通じて Explorer ウィンドウの選択ファイルパスを取得
+    pub(super) fn get_selected_paths(hwnd: isize) -> Result<Vec<PathBuf>> {
+        use windows::core::Interface;
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CoTaskMemFree, IServiceProvider, CLSCTX_LOCAL_SERVER,
+            COINIT_APARTMENTTHREADED,
+        };
+        use windows::Win32::System::Variant::VARIANT;
+        use windows::Win32::UI::Shell::{
+            IFolderView2, IShellItem, IShellItemArray, IShellWindows, ShellWindows,
+            SID_STopLevelBrowser, SIGDN_FILESYSPATH,
+        };
+        use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, GA_ROOT};
+
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+
+            let shell_windows: IShellWindows =
+                CoCreateInstance(&ShellWindows, None, CLSCTX_LOCAL_SERVER)?;
+
+            let count = shell_windows.Count()?;
+            let target = HWND(hwnd as *mut _);
+
+            for i in 0..count {
+                let v = VARIANT::from(i);
+                let disp = match shell_windows.Item(&v) {
+                    Ok(d) => d,
+                    Err(_) => continue,
+                };
+
+                let sp: IServiceProvider = match disp.cast() {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+
+                let browser: windows::Win32::UI::Shell::IShellBrowser =
+                    match sp.QueryService(&SID_STopLevelBrowser) {
+                        Ok(b) => b,
+                        Err(_) => continue,
+                    };
+
+                let ole: windows::Win32::System::Ole::IOleWindow = browser.cast()?;
+                let wnd = ole.GetWindow()?;
+                let root = GetAncestor(wnd, GA_ROOT);
+                if wnd != target && root != target {
+                    continue;
+                }
+
+                let view = browser.QueryActiveShellView()?;
+                let fv: IFolderView2 = view.cast()?;
+                let items: IShellItemArray = match fv.GetSelection(false) {
+                    Ok(items) => items,
+                    Err(_) => return Ok(vec![]),
+                };
+
+                let item_count = items.GetCount()?;
+                let mut paths = Vec::with_capacity(item_count as usize);
+
+                for j in 0..item_count {
+                    let item: IShellItem = items.GetItemAt(j)?;
+                    let name_pwstr = item.GetDisplayName(SIGDN_FILESYSPATH)?;
+                    let path_string = name_pwstr.to_string()?;
+                    CoTaskMemFree(Some(name_pwstr.0 as _));
+                    paths.push(PathBuf::from(path_string));
+                }
+
+                return Ok(paths);
+            }
+
+            Ok(vec![])
+        }
+    }
+}
+
+// ── Platform: Linux ──
+
+#[cfg(target_os = "linux")]
+mod imp {
+    use anyhow::Result;
+    use std::path::PathBuf;
+
+    /// Linux: ファイルマネージャの選択ファイル取得は未実装。
+    /// Nautilus D-Bus API または xclip の text/uri-list で取得可能。
+    /// See: https://github.com/kimushun1101/muhenkan-switch-rs/issues/19
+    pub(super) fn get_selected_paths(_hwnd: isize) -> Result<Vec<PathBuf>> {
+        anyhow::bail!("File manager selection is not yet supported on Linux")
+    }
+}
+
+// ── Platform: macOS ──
+
+#[cfg(target_os = "macos")]
+mod imp {
+    use anyhow::Result;
+    use std::path::PathBuf;
+
+    /// macOS: Finder の選択ファイル取得は未実装。
+    /// osascript で Finder の selection を取得可能。
+    /// See: https://github.com/kimushun1101/muhenkan-switch-rs/issues/19
+    pub(super) fn get_selected_paths(_hwnd: isize) -> Result<Vec<PathBuf>> {
+        anyhow::bail!("File manager selection is not yet supported on macOS")
+    }
 }
