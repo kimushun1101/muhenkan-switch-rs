@@ -2,6 +2,7 @@
 # 使い方:
 #   mise install         Rust ツールチェーンのセットアップ
 #   mise run setup       Linux: ビルド依存 + uinput パーミッション設定（初回のみ）
+#   mise run sync-kanata-version  kanata バージョンを全ファイルに同期
 #   mise run fetch-kanata 開発用 kanata バイナリをダウンロード
 #   mise run build       debug ビルド → ルートにコピー
 #   mise run release     release ビルド → ルートにコピー
@@ -12,6 +13,7 @@
 
 [tools]
 rust = "1.93"
+python = "3"
 
 [tasks.setup]
 description = "Install build & runtime dependencies for Linux + show uinput setup guide"
@@ -86,6 +88,10 @@ if [ -n "$MISSING" ]; then
   exit 1
 fi
 """
+
+[tasks.sync-kanata-version]
+description = "Sync kanata version from kanata-version.txt to all files"
+run = "bash scripts/sync-kanata-version.sh"
 
 [tasks.fetch-kanata]
 description = "Download kanata binary for development"
