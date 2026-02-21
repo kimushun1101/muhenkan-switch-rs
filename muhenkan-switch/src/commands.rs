@@ -266,7 +266,7 @@ pub fn open_install_dir() -> Result<(), String> {
     let dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        .ok_or_else(|| "Cannot determine install directory".to_string())?;
+        .ok_or_else(|| "インストール先のフォルダが見つかりません".to_string())?;
     open::that(&dir).map_err(|e| e.to_string())
 }
 
@@ -289,7 +289,7 @@ pub fn open_help_window(app: tauri::AppHandle) -> Result<(), String> {
         use tauri::{WebviewUrl, WebviewWindowBuilder};
         let _ = WebviewWindowBuilder::new(&app, "help", WebviewUrl::App("help.html".into()))
             .title("使い方 — muhenkan-switch")
-            .inner_size(660.0, 480.0)
+            .inner_size(600.0, 700.0)
             .resizable(true)
             .center()
             .build();

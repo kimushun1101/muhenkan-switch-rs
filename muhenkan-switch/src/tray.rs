@@ -16,15 +16,16 @@ pub fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn build_tray(handle: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let status_item = MenuItemBuilder::with_id("kanata_status", "kanata: 停止中")
-        .enabled(false)
-        .build(handle)?;
+    let status_item =
+        MenuItemBuilder::with_id("kanata_status", "キー割当（kanata）: 停止中")
+            .enabled(false)
+            .build(handle)?;
     let start_item =
-        MenuItemBuilder::with_id("kanata_start", "kanata を開始").build(handle)?;
+        MenuItemBuilder::with_id("kanata_start", "キー割当（kanata）を開始").build(handle)?;
     let stop_item =
-        MenuItemBuilder::with_id("kanata_stop", "kanata を停止").build(handle)?;
+        MenuItemBuilder::with_id("kanata_stop", "キー割当（kanata）を停止").build(handle)?;
     let restart_item =
-        MenuItemBuilder::with_id("kanata_restart", "kanata を再起動").build(handle)?;
+        MenuItemBuilder::with_id("kanata_restart", "キー割当（kanata）を再起動").build(handle)?;
     let sep1 = PredefinedMenuItem::separator(handle)?;
     let settings_item =
         MenuItemBuilder::with_id("settings", "設定...").build(handle)?;
