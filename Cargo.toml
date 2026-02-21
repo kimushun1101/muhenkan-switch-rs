@@ -5,3 +5,16 @@ members = [
     "muhenkan-switch-config",
     "muhenkan-switch-core",
 ]
+
+[workspace.package]
+version = "0.3.0"
+edition = "2021"
+license = "GPL-2.0-only"
+repository = "https://github.com/kimushun1101/muhenkan-switch-rs"
+
+[workspace.dependencies]
+muhenkan-switch-config = { path = "muhenkan-switch-config" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+chrono = "0.4"
+open = "5"

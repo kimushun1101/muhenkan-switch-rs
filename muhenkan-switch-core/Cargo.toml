@@ -1,24 +1,24 @@
 [package]
 name = "muhenkan-switch-core"
-version = "0.3.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "Companion tool for muhenkan-switch-rs: cross-platform shortcut actions"
-license = "GPL-2.0-only"
-repository = "https://github.com/kimushun1101/muhenkan-switch-rs"
+license.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "muhenkan-switch-core"
 path = "src/main.rs"
 
 [dependencies]
-muhenkan-switch-config = { path = "../muhenkan-switch-config" }
+muhenkan-switch-config.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+open.workspace = true
 clap = { version = "4", features = ["derive"] }
 arboard = { version = "3", features = ["wayland-data-control"] }
 webbrowser = "1"
-open = "5"
-chrono = "0.4"
 urlencoding = "2"
-anyhow = "1"
 dirs = "6"
 
 [dev-dependencies]

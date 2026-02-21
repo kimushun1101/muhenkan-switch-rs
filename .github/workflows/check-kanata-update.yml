@@ -15,8 +15,8 @@ jobs:
       - name: Get current kanata version
         id: current
         run: |
-          # install.sh から現在のバージョンを取得
-          version=$(grep -m1 '^KANATA_VERSION=' scripts/install.sh | sed 's/KANATA_VERSION="//' | sed 's/"//')
+          # kanata-version.txt から現在のバージョンを取得
+          version=$(tr -d '[:space:]' < kanata-version.txt)
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Current: $version"
 
@@ -57,10 +57,10 @@ jobs:
             echo ""
             echo "### 対応手順"
             echo "1. リリースノートで破壊的変更がないか確認"
-            echo "2. 以下のファイルの \`KANATA_VERSION\` を \`$LATEST\` に更新"
-            echo "   - \`scripts/install.ps1\`"
-            echo "   - \`scripts/install.sh\`"
-            echo "   - \`scripts/install-macos.sh\`"
+            echo "2. バージョン同期スクリプトを実行:"
+            echo "   \`\`\`bash"
+            echo "   bash scripts/sync-kanata-version.sh $LATEST"
+            echo "   \`\`\`"
             echo "3. 動作確認後リリース"
           } > /tmp/issue-body.md
 

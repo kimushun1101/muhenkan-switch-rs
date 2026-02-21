@@ -1,0 +1,4 @@
+# シェルスクリプトは常に LF（Linux/macOS で実行されるため）
+*.sh text eol=lf
+# kanata-version.txt はシェルスクリプトから読まれるため LF
+kanata-version.txt text eol=lf
