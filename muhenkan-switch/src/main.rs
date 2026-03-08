@@ -5,6 +5,26 @@ mod kanata;
 mod tray;
 
 fn main() {
+    // windows_subsystem = "windows" では stderr が見えないため、パニック時にファイルへ記録
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if let Some(log_path) = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|d| d.join("panic.log")))
+        {
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(log_path)
+            {
+                use std::io::Write;
+                let _ = writeln!(f, "{}", info);
+                let _ = writeln!(f, "{}", std::backtrace::Backtrace::force_capture());
+            }
+        }
+        default_hook(info);
+    }));
+
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())

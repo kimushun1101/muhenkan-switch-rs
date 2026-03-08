@@ -221,31 +221,45 @@ pub struct UpdateInfo {
 
 #[tauri::command]
 pub async fn check_update(app: tauri::AppHandle) -> Result<Option<UpdateInfo>, String> {
-    use tauri_plugin_updater::UpdaterExt;
-    match app.updater().map_err(|e| format!("{:#}", e))?.check().await {
-        Ok(Some(update)) => Ok(Some(UpdateInfo {
-            version: update.version.clone(),
-            body: update.body.clone(),
-        })),
-        Ok(None) => Ok(None),
-        Err(e) => Err(format!("{:#}", e)),
-    }
+    // spawn で隔離し、updater 内部の panic でアプリが落ちるのを防ぐ
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_updater::UpdaterExt;
+        let update = app
+            .updater()
+            .map_err(|e| format!("{:#}", e))?
+            .check()
+            .await
+            .map_err(|e| format!("{:#}", e))?;
+        match update {
+            Some(u) => Ok(Some(UpdateInfo {
+                version: u.version.clone(),
+                body: u.body.clone(),
+            })),
+            None => Ok(None),
+        }
+    })
+    .await
+    .unwrap_or_else(|e| Err(format!("アップデート確認中にエラーが発生しました: {}", e)))
 }
 
 #[tauri::command]
 pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
-    use tauri_plugin_updater::UpdaterExt;
-    let update = app
-        .updater()
-        .map_err(|e| format!("{:#}", e))?
-        .check()
-        .await
-        .map_err(|e| format!("{:#}", e))?
-        .ok_or("アップデートが見つかりません".to_string())?;
-    update
-        .download_and_install(|_, _| {}, || {})
-        .await
-        .map_err(|e| format!("{:#}", e))
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_updater::UpdaterExt;
+        let update = app
+            .updater()
+            .map_err(|e| format!("{:#}", e))?
+            .check()
+            .await
+            .map_err(|e| format!("{:#}", e))?
+            .ok_or("アップデートが見つかりません".to_string())?;
+        update
+            .download_and_install(|_, _| {}, || {})
+            .await
+            .map_err(|e| format!("{:#}", e))
+    })
+    .await
+    .unwrap_or_else(|e| Err(format!("アップデートインストール中にエラーが発生しました: {}", e)))
 }
 
 // ── Autostart ──
